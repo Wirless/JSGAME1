@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSRE RPG</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #2c3e50;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    
+    .game-container {
+      display: flex;
+      flex-grow: 1;
+    }
+    
+    .game-window {
+      flex-grow: 1;
+      position: relative;
+      margin: 10px;
+      background-color: #000;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .chat-window {
+      height: 350px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      margin: 0 10px 10px 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .chat-tabs {
+      display: flex;
+      background-color: #1a252f;
+    }
+    
+    .chat-tab {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    
+    .chat-tab.active {
+      background-color: #3498db;
+    }
+    
+    .chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 5px;
+    }
+    
+    .chat-input {
+      display: flex;
+      padding: 5px;
+    }
+    
+    #chatInputField {
+      flex-grow: 1;
+      border: none;
+      padding: 5px;
+      border-radius: 3px;
+      margin-right: 5px;
+    }
+    
+    #sendButton {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    
+    .stats-window {
+      width: 200px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      margin: 10px 10px 10px 0;
+      border-radius: 5px;
+      padding: 10px;
+    }
+    
+    .stats-header {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #3498db;
+      padding-bottom: 5px;
+    }
+    
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    
+    .skill-progress {
+      height: 10px;
+      background-color: #34495e;
+      border-radius: 5px;
+      margin-top: 2px;
+    }
+    
+    .skill-bar {
+      height: 100%;
+      background-color: #3498db;
+      border-radius: 5px;
+      width: 0%;
+    }
+    
+    /* Chat message styling */
+    .chat-message {
+      margin-bottom: 3px;
+      word-wrap: break-word;
+    }
+    
+    .chat-message.server {
+      color: #f39c12;
+    }
+    
+    .chat-message.trade {
+      color: #2ecc71;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="game-window">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+    <div class="stats-window">
+      <div class="stats-header">Character Stats</div>
+      <div class="stats-content">
+        <div class="stat-item">
+          <span>Health:</span>
+          <span id="healthStat">100/100</span>
+        </div>
+        <div class="stat-item">
+          <span>Mana:</span>
+          <span id="manaStat">50/50</span>
+        </div>
+        <div class="stat-item">
+          <span>Strength:</span>
+          <span id="strengthStat">10</span>
+        </div>
+        <div class="stat-item">
+          <span>Defense:</span>
+          <span id="defenseStat">5</span>
+        </div>
+        <div class="stat-item">
+          <span>Dexterity:</span>
+          <span id="dexterityStat">8</span>
+        </div>
+        <div class="stat-item">
+          <span>Agility:</span>
+          <span id="agilityStat">7</span>
+        </div>
+        <div class="stat-item">
+          <span>Intelligence:</span>
+          <span id="intelligenceStat">6</span>
+        </div>
+        <div class="stat-item">
+          <span>Luck:</span>
+          <span id="luckStat">5</span>
+        </div>
+        <div class="stats-header">Skills</div>
+        <div class="stat-item">
+          <span>Melee:</span>
+          <span id="meleeStat">10</span>
+        </div>
+        <div class="skill-progress">
+          <div id="meleeProgress" class="skill-bar" style="width: 10%;"></div>
+        </div>
+        <div class="stat-item">
+          <span>Distance:</span>
+          <span id="distanceStat">5</span>
+        </div>
+        <div class="skill-progress">
+          <div id="distanceProgress" class="skill-bar" style="width: 5%;"></div>
+        </div>
+        <div class="stat-item">
+          <span>Magic:</span>
+          <span id="magicStat">8</span>
+        </div>
+        <div class="skill-progress">
+          <div id="magicProgress" class="skill-bar" style="width: 8%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="chat-window">
+    <div class="chat-tabs">
+      <div class="chat-tab active" data-channel="game">Game</div>
+      <div class="chat-tab" data-channel="server">Server</div>
+      <div class="chat-tab" data-channel="trade">Trade</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="chatInputField" placeholder="Type your message here...">
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+  
+  <script src="js/game.js"></script>
+  <script>
+    // Check authentication first before initializing the game
+    document.addEventListener('DOMContentLoaded', () => {
+      const userInfo = JSON.parse(sessionStorage.getItem('user') || '{}');
+      
+      // If not logged in, redirect to login page immediately
+      if (!userInfo.username) {
+        window.location.href = '/login';
+        return;
+      }
+      
+      // Only initialize the game if logged in
+      if (window.init) {
+        init();
+      }
+    });
+  </script>
+</body>
+</html> 

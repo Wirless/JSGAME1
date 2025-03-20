@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSRE RPG - Login</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #2c3e50;
+      color: #ecf0f1;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/tileset.png');
+      background-size: 200px;
+      background-position: center;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .logo h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      color: #3498db;
+      text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    
+    .logo p {
+      margin-top: 0.5rem;
+      color: #bdc3c7;
+      font-style: italic;
+    }
+    
+    .form-container {
+      background-color: rgba(52, 73, 94, 0.9);
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .tab-header {
+      display: flex;
+      margin-bottom: 1.5rem;
+    }
+    
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem;
+      background-color: #2c3e50;
+      color: #bdc3c7;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .tab:first-child {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .tab:last-child {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .tab.active {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    .form-content {
+      display: none;
+    }
+    
+    .form-content.active {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+    }
+    
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #7f8c8d;
+      border-radius: 4px;
+      background-color: #1a252f;
+      color: white;
+      box-sizing: border-box;
+    }
+    
+    .error-message {
+      color: #e74c3c;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+    
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background-color: #2980b9;
+    }
+    
+    .info-text {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #bdc3c7;
+    }
+    
+    .info-text a {
+      color: #3498db;
+      text-decoration: none;
+    }
+    
+    .welcome-text {
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    
+    .feature-list {
+      margin-top: 1rem;
+      padding-left: 1.5rem;
+    }
+    
+    .feature-list li {
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .feature-list li::before {
+      content: "✓";
+      color: #2ecc71;
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+    
+    .access-info {
+      background-color: rgba(41, 128, 185, 0.2);
+      border-left: 3px solid #3498db;
+      padding: 0.75rem;
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .guest-option {
+      margin-top: 2rem;
+      text-align: center;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(189, 195, 199, 0.3);
+    }
+    
+    .guest-button {
+      background-color: #95a5a6;
+      margin-top: 0.5rem;
+      transition: all 0.3s;
+    }
+    
+    .guest-button:hover {
+      background-color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>MSRE RPG</h1>
+      <p>A multiplayer role-playing adventure</p>
+    </div>
+    
+    <div class="form-container">
+      <div class="welcome-text">
+        <h2>Welcome to the Adventure!</h2>
+        <p>Join our growing community of explorers in this exciting RPG world. Create an account or log in to continue your journey.</p>
+        
+        <ul class="feature-list">
+          <li>Explore vast tilesets and maps</li>
+          <li>Interact with other players</li>
+          <li>Develop your character's skills</li>
+          <li>Engage in combat and quests</li>
+        </ul>
+        
+        <div class="access-info">
+          <p><strong>Note:</strong> Regular players have access to the game client. Administrator accounts have additional access to content editing tools.</p>
+        </div>
+      </div>
+      
+      <div class="tab-header">
+        <div class="tab active" id="loginTab">Login</div>
+        <div class="tab" id="registerTab">Create Account</div>
+      </div>
+      
+      <div class="form-content active" id="loginForm">
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" placeholder="Enter your username">
+          <div class="error-message" id="loginUsernameError"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter your password">
+          <div class="error-message" id="loginPasswordError"></div>
+        </div>
+        
+        <button id="loginButton">Login</button>
+        
+        <div class="info-text" id="loginMessage"></div>
+        
+        <div class="guest-option">
+          <p>Not ready to create an account?</p>
+          <button id="playAsGuestBtn" class="guest-button">Play as Guest</button>
+        </div>
+      </div>
+      
+      <div class="form-content" id="registerForm">
+        <div class="form-group">
+          <label for="registerUsername">Username</label>
+          <input type="text" id="registerUsername" placeholder="Choose a username">
+          <div class="error-message" id="registerUsernameError"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" placeholder="Enter your email">
+          <div class="error-message" id="registerEmailError"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="registerPassword">Password</label>
+          <input type="password" id="registerPassword" placeholder="Choose a password">
+          <div class="error-message" id="registerPasswordError"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Confirm your password">
+          <div class="error-message" id="confirmPasswordError"></div>
+        </div>
+        
+        <button id="registerButton">Create Account</button>
+        
+        <div class="info-text" id="registerMessage"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // DOM Elements
+    const loginTab = document.getElementById('loginTab');
+    const registerTab = document.getElementById('registerTab');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const loginButton = document.getElementById('loginButton');
+    const registerButton = document.getElementById('registerButton');
+    
+    // Check if already logged in
+    document.addEventListener('DOMContentLoaded', () => {
+      const userInfo = JSON.parse(sessionStorage.getItem('user') || '{}');
+      
+      if (userInfo.username) {
+        // User is already logged in, redirect appropriately
+        if (userInfo.access === 'admin' || userInfo.access === 'mod') {
+          window.location.href = '/editor'; // Admin dashboard
+        } else {
+          window.location.href = '/game'; // Game page
+        }
+      }
+    });
+    
+    // Tab switching
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active');
+      registerTab.classList.remove('active');
+      loginForm.classList.add('active');
+      registerForm.classList.remove('active');
+    });
+    
+    registerTab.addEventListener('click', () => {
+      registerTab.classList.add('active');
+      loginTab.classList.remove('active');
+      registerForm.classList.add('active');
+      loginForm.classList.remove('active');
+    });
+    
+    // Login form submission
+    loginButton.addEventListener('click', async () => {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginMessage = document.getElementById('loginMessage');
+      
+      // Reset errors
+      document.getElementById('loginUsernameError').style.display = 'none';
+      document.getElementById('loginPasswordError').style.display = 'none';
+      loginMessage.textContent = '';
+      
+      // Validate form
+      let hasError = false;
+      
+      if (!username) {
+        document.getElementById('loginUsernameError').textContent = 'Username is required';
+        document.getElementById('loginUsernameError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (!password) {
+        document.getElementById('loginPasswordError').textContent = 'Password is required';
+        document.getElementById('loginPasswordError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (hasError) return;
+      
+      // Submit login request
+      try {
+        loginButton.disabled = true;
+        loginButton.textContent = 'Logging in...';
+        
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Save user info to session storage
+          sessionStorage.setItem('user', JSON.stringify({
+            username: data.username,
+            access: data.access
+          }));
+          
+          // Redirect based on access level
+          if (data.access === 'admin' || data.access === 'mod') {
+            window.location.href = '/editor'; // Admin dashboard
+          } else {
+            window.location.href = '/game'; // Game page
+          }
+        } else {
+          loginMessage.textContent = data.message || 'Login failed';
+        }
+      } catch (error) {
+        loginMessage.textContent = 'An error occurred. Please try again.';
+        console.error('Login error:', error);
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = 'Login';
+      }
+    });
+    
+    // Register form submission
+    registerButton.addEventListener('click', async () => {
+      const username = document.getElementById('registerUsername').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const password = document.getElementById('registerPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const registerMessage = document.getElementById('registerMessage');
+      
+      // Reset errors
+      document.getElementById('registerUsernameError').style.display = 'none';
+      document.getElementById('registerEmailError').style.display = 'none';
+      document.getElementById('registerPasswordError').style.display = 'none';
+      document.getElementById('confirmPasswordError').style.display = 'none';
+      registerMessage.textContent = '';
+      
+      // Validate form
+      let hasError = false;
+      
+      if (!username) {
+        document.getElementById('registerUsernameError').textContent = 'Username is required';
+        document.getElementById('registerUsernameError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (!email) {
+        document.getElementById('registerEmailError').textContent = 'Email is required';
+        document.getElementById('registerEmailError').style.display = 'block';
+        hasError = true;
+      } else if (!isValidEmail(email)) {
+        document.getElementById('registerEmailError').textContent = 'Please enter a valid email';
+        document.getElementById('registerEmailError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (!password) {
+        document.getElementById('registerPasswordError').textContent = 'Password is required';
+        document.getElementById('registerPasswordError').style.display = 'block';
+        hasError = true;
+      } else if (password.length < 6) {
+        document.getElementById('registerPasswordError').textContent = 'Password must be at least 6 characters';
+        document.getElementById('registerPasswordError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (password !== confirmPassword) {
+        document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+        document.getElementById('confirmPasswordError').style.display = 'block';
+        hasError = true;
+      }
+      
+      if (hasError) return;
+      
+      // Submit registration request
+      try {
+        registerButton.disabled = true;
+        registerButton.textContent = 'Creating Account...';
+        
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          registerMessage.innerHTML = '<span style="color: #2ecc71;">Account created successfully!</span> You can now log in with your credentials.';
+          // Clear form
+          document.getElementById('registerUsername').value = '';
+          document.getElementById('registerEmail').value = '';
+          document.getElementById('registerPassword').value = '';
+          document.getElementById('confirmPassword').value = '';
+          
+          // Switch to login tab after 2 seconds
+          setTimeout(() => {
+            loginTab.click();
+          }, 2000);
+        } else {
+          registerMessage.textContent = data.message || 'Registration failed';
+        }
+      } catch (error) {
+        registerMessage.textContent = 'An error occurred. Please try again.';
+        console.error('Registration error:', error);
+      } finally {
+        registerButton.disabled = false;
+        registerButton.textContent = 'Create Account';
+      }
+    });
+    
+    // Helper function to validate email
+    function isValidEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+    
+    // Handle Enter key for form submission
+    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        loginButton.click();
+      }
+    });
+    
+    document.getElementById('confirmPassword').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        registerButton.click();
+      }
+    });
+    
+    // Guest play handler
+    const playAsGuestBtn = document.getElementById('playAsGuestBtn');
+    playAsGuestBtn.addEventListener('click', () => {
+      // Set a temporary guest user in session storage
+      sessionStorage.setItem('user', JSON.stringify({
+        username: `Guest_${Math.floor(Math.random() * 10000)}`,
+        access: 'none'
+      }));
+      
+      // Redirect to game
+      window.location.href = '/game';
+    });
+  </script>
+</body>
+</html> 

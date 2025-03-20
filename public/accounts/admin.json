@@ -1,0 +1,8 @@
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "hash": "f05603468844e83a0ba2964cfd41f1fe8b937a7a431a5b75e14042aa2d243a4247f60471547262eaf5cd305c1e13a08375b029e27bc3e59e137c599169b3e93b",
+  "salt": "c9d43e73813922ba830a2f31bff82147",
+  "access": "admin",
+  "created": "2025-03-20T20:36:00.162Z"
+}

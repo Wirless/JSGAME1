@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSRE RPG - World Editor</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/world-editor.css">
+</head>
+<body>
+  <header>
+    <h1>World Editor</h1>
+    <nav class="main-nav">
+      <button id="worldEditorTab" class="nav-tab active">World Map</button>
+      <button id="sectorEditorTab" class="nav-tab">Sector Editor</button>
+      <button id="indexEditorTab" class="nav-tab">Index Editor</button>
+    </nav>
+  </header>
+  
+  <div class="container">
+    <!-- World Map Editor Section -->
+    <div id="worldEditorSection" class="editor-section active">
+      <div class="world-controls-container">
+        <div class="world-controls">
+          <div class="form-group">
+            <label for="worldName">World Name:</label>
+            <input type="text" id="worldName" value="Eldoria">
+          </div>
+          <div class="form-group">
+            <label for="worldWidth">Width (Sectors):</label>
+            <input type="number" id="worldWidth" value="10" min="1" max="100">
+          </div>
+          <div class="form-group">
+            <label for="worldHeight">Height (Sectors):</label>
+            <input type="number" id="worldHeight" value="10" min="1" max="100">
+          </div>
+          <button id="createWorldBtn">Create/Reset World</button>
+        </div>
+        
+        <div class="world-actions">
+          <button id="saveWorldBtn">Save World Index</button>
+          <button id="loadWorldBtn">Load World Index</button>
+          <input type="file" id="worldFileInput" accept=".json" style="display: none;">
+          <button id="downloadWorldBtn">Download World Index</button>
+          <button id="generateSectorsBtn">Generate Missing Sectors</button>
+        </div>
+      </div>
+      
+      <div class="world-editor-container">
+        <div class="world-tools">
+          <h3>Map Tools</h3>
+          <div class="tool-group">
+            <button id="panToolBtn" class="tool-btn active">
+              <span class="tool-icon">🖐️</span> Pan
+            </button>
+            <button id="selectToolBtn" class="tool-btn">
+              <span class="tool-icon">🔍</span> Select
+            </button>
+            <button id="connectToolBtn" class="tool-btn">
+              <span class="tool-icon">🔗</span> Connect
+            </button>
+            <button id="paintToolBtn" class="tool-btn">
+              <span class="tool-icon">🖌️</span> Paint Region
+            </button>
+          </div>
+          
+          <h3>Region Types</h3>
+          <div class="region-types-container">
+            <div class="region-type" data-region="town">
+              <div class="color-square" style="background-color: #7f7f7f;"></div>
+              <span>Town</span>
+            </div>
+            <div class="region-type" data-region="grassland">
+              <div class="color-square" style="background-color: #7fff7f;"></div>
+              <span>Grassland</span>
+            </div>
+            <div class="region-type" data-region="forest">
+              <div class="color-square" style="background-color: #007f00;"></div>
+              <span>Forest</span>
+            </div>
+            <div class="region-type" data-region="cave">
+              <div class="color-square" style="background-color: #3f3f3f;"></div>
+              <span>Cave</span>
+            </div>
+            <div class="region-type" data-region="dungeon">
+              <div class="color-square" style="background-color: #000000;"></div>
+              <span>Dungeon</span>
+            </div>
+            <button id="addRegionTypeBtn">Add Region Type</button>
+          </div>
+          
+          <h3>Layer Controls</h3>
+          <div class="layer-controls">
+            <button id="showAllLayersBtn">All Layers</button>
+            <button id="showGroundLayerBtn">Ground (z=0)</button>
+            <button id="showUndergroundLayerBtn">Underground (z&lt;0)</button>
+            <input type="range" id="layerSlider" min="-5" max="5" value="0">
+            <span id="currentLayerDisplay">Level: 0</span>
+          </div>
+        </div>
+        
+        <div class="world-canvas-container">
+          <div class="world-canvas-wrapper">
+            <canvas id="worldCanvas" width="800" height="600"></canvas>
+            <div class="minimap-container">
+              <canvas id="minimapCanvas" width="150" height="150"></canvas>
+            </div>
+          </div>
+          <div class="world-scroll-info">
+            <span>Use mouse wheel to zoom, drag to pan, right-click for context menu</span>
+          </div>
+        </div>
+        
+        <div class="sector-info">
+          <h3>Sector Information</h3>
+          <div class="selected-sector">
+            <p>Position: <span id="selectedSectorPosition">None</span></p>
+            <p>Name: <span id="selectedSectorName">None</span></p>
+            <p>Type: <span id="selectedSectorType">None</span></p>
+            <p>Level: <span id="selectedSectorLevel">0</span></p>
+          </div>
+          
+          <div class="sector-actions">
+            <button id="editSectorBtn">Edit Sector</button>
+            <button id="createSectorBtn">Create Sector</button>
+            <button id="deleteSectorBtn">Delete Sector</button>
+          </div>
+          
+          <h4>Sector Properties</h4>
+          <div class="sector-properties">
+            <div class="form-group">
+              <label for="sectorName">Name:</label>
+              <input type="text" id="sectorName" placeholder="Enter sector name">
+            </div>
+            <div class="form-group">
+              <label for="sectorType">Type:</label>
+              <select id="sectorType">
+                <option value="town">Town</option>
+                <option value="grassland">Grassland</option>
+                <option value="forest">Forest</option>
+                <option value="cave">Cave</option>
+                <option value="dungeon">Dungeon</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sectorLevel">Difficulty Level:</label>
+              <input type="number" id="sectorLevel" min="1" max="100" value="1">
+            </div>
+            <div class="form-group">
+              <label for="safeZone">Safe Zone:</label>
+              <input type="checkbox" id="safeZone">
+            </div>
+            <button id="applySectorPropsBtn">Apply Properties</button>
+          </div>
+          
+          <h4>Connections</h4>
+          <div id="sectorConnections" class="connections-list">
+            <p>No connections</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sector Editor Tab - Just links to the original map editor with context -->
+    <div id="sectorEditorSection" class="editor-section">
+      <div class="sector-editor-intro">
+        <h2>Sector Editor</h2>
+        <p>The sector editor allows you to edit individual map sectors using the Map Editor tool.</p>
+        <p>Current sector: <span id="currentSectorDisplay">None</span></p>
+        
+        <div class="editor-actions">
+          <button id="openMapEditorBtn" class="primary-btn">Open Map Editor</button>
+          <button id="importSectorBtn">Import Existing Map</button>
+          <button id="createNewSectorBtn">Create New Sector</button>
+        </div>
+        
+        <div class="recent-sectors">
+          <h3>Recently Edited Sectors</h3>
+          <div id="recentSectorsList" class="recent-list">
+            <!-- Recent sectors will be listed here -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Index Editor Tab -->
+    <div id="indexEditorSection" class="editor-section">
+      <div class="index-editor-container">
+        <h2>World Index Editor</h2>
+        <p>The index editor allows you to directly edit the mapsindex.json file.</p>
+        
+        <div class="index-editor-main">
+          <div class="index-json-container">
+            <h3>JSON Editor</h3>
+            <div class="code-editor-controls">
+              <button id="validateJsonBtn">Validate JSON</button>
+              <button id="formatJsonBtn">Format JSON</button>
+              <button id="saveIndexChangesBtn">Save Changes</button>
+            </div>
+            <textarea id="indexJsonEditor" class="json-editor"></textarea>
+          </div>
+          
+          <div class="index-schema-container">
+            <h3>Schema Reference</h3>
+            <div class="schema-section">
+              <h4>World Properties</h4>
+              <ul>
+                <li><code>worldName</code>: String - Name of the world</li>
+                <li><code>worldVersion</code>: String - Version number</li>
+                <li><code>worldSize</code>: Object - Dimensions of the world in sectors</li>
+              </ul>
+            </div>
+            
+            <div class="schema-section">
+              <h4>Sector Properties</h4>
+              <ul>
+                <li><code>coordinates</code>: Object - Position in world grid</li>
+                <li><code>filename</code>: String - Path to sector JSON file</li>
+                <li><code>name</code>: String - Human-readable name</li>
+                <li><code>type</code>: String - Region type (must match defined types)</li>
+                <li><code>level</code>: Number - Difficulty level (1-100)</li>
+                <li><code>connections</code>: Object - Connections to other sectors</li>
+                <li><code>metadata</code>: Object - Additional sector-specific data</li>
+              </ul>
+            </div>
+            
+            <div class="schema-section">
+              <h4>Connection Properties</h4>
+              <ul>
+                <li><code>targetSector</code>: Object - Coordinates of connected sector</li>
+                <li><code>exitPoint</code>: Object - Position of exit point in tiles</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Contextual help panel -->
+  <div class="help-panel" id="helpPanel">
+    <div class="help-header">
+      <h3>World Editor Help</h3>
+      <button id="closeHelpBtn">×</button>
+    </div>
+    <div class="help-content">
+      <h4>Quick Tips</h4>
+      <ul>
+        <li>Click and drag to pan around the world map</li>
+        <li>Use the mouse wheel to zoom in and out</li>
+        <li>Right-click on a sector for quick actions</li>
+        <li>Use the connect tool to create portals between sectors</li>
+        <li>The sector editor uses the same interface as the map editor</li>
+      </ul>
+      
+      <h4>Keyboard Shortcuts</h4>
+      <div class="shortcuts-list">
+        <div class="shortcut-item">
+          <span class="key">Ctrl+S</span>
+          <span class="description">Save world index</span>
+        </div>
+        <div class="shortcut-item">
+          <span class="key">Ctrl+O</span>
+          <span class="description">Open world index</span>
+        </div>
+        <div class="shortcut-item">
+          <span class="key">E</span>
+          <span class="description">Edit selected sector</span>
+        </div>
+        <div class="shortcut-item">
+          <span class="key">C</span>
+          <span class="description">Create new sector</span>
+        </div>
+        <div class="shortcut-item">
+          <span class="key">Delete</span>
+          <span class="description">Delete selected sector</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Script references -->
+  <script src="js/world-editor.js"></script>
+</body>
+</html> 

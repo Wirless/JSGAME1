@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "1",
+    "type": "full",
+    "baseSprite": {
+      "x": 8,
+      "y": 31
+    }
+  },
+  {
+    "id": 2,
+    "name": "2",
+    "type": "both",
+    "baseSprite": {
+      "x": 40,
+      "y": 31
+    },
+    "addons": {
+      "armor": {
+        "x": 36,
+        "y": 33
+      },
+      "leftHand": {
+        "x": 38,
+        "y": 36
+      },
+      "rightHand": {
+        "x": 41,
+        "y": 35
+      }
+    }
+  }
+]

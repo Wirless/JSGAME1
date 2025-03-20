@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Editor</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Game Editor</h1>
+    <nav class="main-nav">
+      <button id="itemEditorTab" class="nav-tab active admin-only">Item Editor</button>
+      <button id="mapEditorTab" class="nav-tab admin-only">Map Editor</button>
+      <button id="outfitEditorTab" class="nav-tab admin-only">Outfit Editor</button>
+      <button id="gameClientTab" class="nav-tab">Game Client</button>
+      <div class="account-nav">
+        <span id="usernameDisplay"></span>
+        <button id="logoutBtn" class="small-btn">Logout</button>
+      </div>
+    </nav>
+  </header>
+  
+  <div class="container">
+    <!-- Item Editor Section -->
+    <div id="itemEditorSection" class="editor-section active">
+      <div class="editor-container">
+        <div class="sprite-selector">
+          <h2>Sprite Sheet</h2>
+          
+          <div class="sprite-quick-tools">
+            <div class="selected-sprite">
+              <canvas id="selectedSpriteCanvas" width="64" height="64"></canvas>
+              <p>Selected: <span id="selectedPosition">None</span></p>
+            </div>
+            
+            <div>
+              <button id="addSpriteVariant" class="small-btn">Add Current Sprite <span class="key-shortcut">F2</span></button>
+              <p class="help-text">Shift+Click: Select multiple sprites</p>
+            </div>
+          </div>
+          
+          <div class="selected-sprites-container" id="quickVariantsContainer">
+            <!-- Quick variants will be added here -->
+          </div>
+          
+          <div class="sprite-sheet-container">
+            <div class="sprite-sheet-wrapper">
+              <canvas id="spriteSheetCanvas" width="800" height="600"></canvas>
+            </div>
+          </div>
+          <div class="sprite-controls">
+            <button id="zoomIn">Zoom In <span class="key-shortcut">+</span></button>
+            <button id="zoomOut">Zoom Out <span class="key-shortcut">-</span></button>
+            <span id="coordinates">X: 0, Y: 0</span>
+          </div>
+        </div>
+        
+        <div class="item-editor">
+          <h2>Item Properties</h2>
+          
+          <div class="property-form">
+            <div class="form-group">
+              <label for="itemName">Item Name:</label>
+              <input type="text" id="itemName" placeholder="Enter item name">
+            </div>
+            
+            <div class="form-group">
+              <label for="itemId">Item ID:</label>
+              <input type="number" id="itemId" placeholder="Enter item ID">
+            </div>
+            
+            <div class="form-group full-width">
+              <label for="multiSprite">Sprite Variants:</label>
+              <div class="sprite-variants">
+                <div id="spriteVariants" class="sprite-variants-list"></div>
+                <div class="button-group">
+                  <button type="button" id="clearSpriteVariants" class="small-btn">Clear Variants <span class="key-shortcut">F3</span></button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Animation Settings:</label>
+              <div class="animation-settings">
+                <div class="toggle-item">
+                  <input type="checkbox" id="isAnimated">
+                  <label for="isAnimated">Animated Item</label>
+                </div>
+                <div>
+                  <label for="animationSpeed">Animation Speed (ms):</label>
+                  <input type="number" id="animationSpeed" placeholder="Animation interval (ms)" value="500">
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Basic Properties:</label>
+              <div class="property-toggle">
+                <div class="toggle-item">
+                  <input type="checkbox" id="walkable">
+                  <label for="walkable">Walkable</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="checkbox" id="blocking">
+                  <label for="blocking">Blocking</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="checkbox" id="useable">
+                  <label for="useable">Useable</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="checkbox" id="pickupable">
+                  <label for="pickupable">Pickupable</label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Skill Type:</label>
+              <div class="property-toggle">
+                <div class="toggle-item">
+                  <input type="radio" id="skillTypeMelee" name="skillType" value="melee">
+                  <label for="skillTypeMelee">Melee</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="radio" id="skillTypeDistance" name="skillType" value="distance">
+                  <label for="skillTypeDistance">Distance</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="radio" id="skillTypeMagic" name="skillType" value="magic">
+                  <label for="skillTypeMagic">Magic</label>
+                </div>
+                
+                <div class="toggle-item">
+                  <input type="radio" id="skillTypeNone" name="skillType" value="none" checked>
+                  <label for="skillTypeNone">None</label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="attack">Attack:</label>
+              <input type="number" id="attack" placeholder="Attack value (if any)">
+            </div>
+            
+            <div class="form-group">
+              <label for="defense">Defense:</label>
+              <input type="number" id="defense" placeholder="Defense value (if any)">
+            </div>
+            
+            <div class="form-group">
+              <label for="armor">Armor:</label>
+              <input type="number" id="armor" placeholder="Armor value (if any)">
+            </div>
+            
+            <div class="form-group">
+              <label for="weight">Weight:</label>
+              <input type="number" id="weight" placeholder="Weight in grams (if any)">
+            </div>
+            
+            <div class="form-group">
+              <label for="slot">Equipment Slot:</label>
+              <select id="slot">
+                <option value="">None</option>
+                <option value="SLOT_NECKLACE">Necklace</option>
+                <option value="SLOT_HEAD">Head</option>
+                <option value="SLOT_BACKPACK">Backpack</option>
+                <option value="SLOT_LEFTHAND">Left Hand</option>
+                <option value="SLOT_ARMOR">Armor</option>
+                <option value="SLOT_RIGHTHAND">Right Hand</option>
+                <option value="SLOT_LEFTRING">Left Ring</option>
+                <option value="SLOT_FEET">Feet</option>
+                <option value="SLOT_RIGHTRING">Right Ring</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="actionScript">Action Script:</label>
+              <input type="text" id="actionScript" placeholder="Path to script file">
+            </div>
+            
+            <div class="form-group">
+              <label for="containerSize">Container Size:</label>
+              <input type="number" id="containerSize" placeholder="Container size (if any)">
+            </div>
+            
+            <div class="form-group">
+              <label for="floorChange">Floor Change:</label>
+              <select id="floorChange">
+                <option value="">None</option>
+                <option value="-2">-2 (Two floors down)</option>
+                <option value="-1">-1 (One floor down)</option>
+                <option value="1">1 (One floor up)</option>
+              </select>
+            </div>
+            
+            <div class="form-group full-width">
+              <div class="button-group">
+                <button id="addItemBtn">Add Item <span class="key-shortcut">Ctrl+S</span></button>
+                <button id="clearItemBtn">Clear Form <span class="key-shortcut">Esc</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="items-list">
+        <h2>Items</h2>
+        <div class="list-controls">
+          <button id="downloadItemsBtn">Download Items JSON</button>
+          <button id="loadItemsBtn">Load Items JSON</button>
+          <input type="file" id="itemsFileInput" accept=".json" style="display: none;">
+          <button id="newItemsJsonBtn">New Items JSON</button>
+        </div>
+        <div id="itemsList" class="items-container"></div>
+      </div>
+    </div>
+    
+    <!-- Map Editor Section -->
+    <div id="mapEditorSection" class="editor-section">
+      <div class="map-controls-container">
+        <div class="map-controls">
+          <div class="form-group">
+            <label for="mapWidth">Map Width:</label>
+            <input type="number" id="mapWidth" value="20" min="5" max="500">
+          </div>
+          <div class="form-group">
+            <label for="mapHeight">Map Height:</label>
+            <input type="number" id="mapHeight" value="20" min="5" max="500">
+          </div>
+          <div class="form-group">
+            <label for="currentLayer">Layer:</label>
+            <input type="number" id="currentLayer" value="0" min="0">
+          </div>
+          <button id="createMapBtn">Create/Reset Map</button>
+          <button id="layerUpBtn">Layer Up</button>
+          <button id="layerDownBtn">Layer Down</button>
+        </div>
+        
+        <div class="map-actions">
+          <button id="saveMapBtn">Save Map</button>
+          <button id="loadMapBtn">Load Map</button>
+          <input type="file" id="mapFileInput" accept=".json" style="display: none;">
+          <button id="downloadMapBtn">Download Map JSON</button>
+          <button id="clearMapBtn">Clear Map</button>
+        </div>
+      </div>
+      
+      <div class="map-editor-container">
+        <div class="item-palette">
+          <h3>Available Items</h3>
+          <div id="itemPalette" class="palette-container"></div>
+        </div>
+        
+        <div class="map-canvas-container">
+          <div class="map-canvas-wrapper">
+            <canvas id="mapCanvas" width="800" height="600"></canvas>
+          </div>
+          <div class="map-scroll-info">
+            <span>Use mouse wheel to zoom, drag to pan</span>
+          </div>
+          <div class="erase-mode-toggle">
+            <input type="checkbox" id="eraseMode">
+            <label for="eraseMode">Erase Mode (right-click to erase)</label>
+          </div>
+        </div>
+        
+        <div class="tile-info">
+          <h3>Tile Information</h3>
+          <div class="selected-tile">
+            <p>Position: <span id="selectedTilePosition">None</span></p>
+            <p>Layer: <span id="selectedTileLayer">0</span></p>
+          </div>
+          <div id="tileItems" class="tile-items-list">
+            <p>No items on this tile</p>
+          </div>
+          <button id="removeItemBtn" disabled>Remove Selected Item</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Outfit Editor Section -->
+    <div id="outfitEditorSection" class="editor-section">
+      <div class="outfit-controls-container">
+        <div class="outfit-controls">
+          <div class="form-group">
+            <label for="outfitName">Outfit Name:</label>
+            <input type="text" id="outfitName" placeholder="Enter outfit name">
+          </div>
+          <div class="form-group">
+            <label for="outfitId">Outfit ID:</label>
+            <input type="number" id="outfitId" placeholder="Enter outfit ID">
+          </div>
+          <div class="form-group">
+            <label>Outfit Type:</label>
+            <div class="outfit-type-toggle">
+              <div class="toggle-item">
+                <input type="radio" id="typeFullOutfit" name="outfitType" value="full" checked>
+                <label for="typeFullOutfit">Full Outfit</label>
+              </div>
+              <div class="toggle-item">
+                <input type="radio" id="typeAddon" name="outfitType" value="addon">
+                <label for="typeAddon">Addon</label>
+              </div>
+              <div class="toggle-item">
+                <input type="radio" id="typeBoth" name="outfitType" value="both">
+                <label for="typeBoth">Both</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="outfit-actions">
+          <button id="saveOutfitBtn">Save Outfit</button>
+          <button id="loadOutfitsBtn">Load Outfits</button>
+          <input type="file" id="outfitsFileInput" accept=".json" style="display: none;">
+          <button id="downloadOutfitsBtn">Download Outfits JSON</button>
+          <button id="clearOutfitBtn">Clear Outfit</button>
+        </div>
+      </div>
+      
+      <div class="outfit-editor-container">
+        <div class="outfit-sprite-selector">
+          <h3>Base Outfit</h3>
+          <div class="sprite-sheet-mini">
+            <canvas id="outfitSpriteCanvas" width="400" height="300"></canvas>
+          </div>
+          <div class="sprite-controls">
+            <button id="outfitZoomIn">Zoom In</button>
+            <button id="outfitZoomOut">Zoom Out</button>
+          </div>
+          <p>Selected Base: <span id="selectedOutfitPosition">None</span></p>
+        </div>
+        
+        <div class="addon-container">
+          <h3>Addons</h3>
+          <div class="addon-selector">
+            <div class="addon-slot">
+              <h4>Wings (Background)</h4>
+              <canvas id="wingsCanvas" width="64" height="64"></canvas>
+              <button id="selectWingsBtn" class="small-btn">Select</button>
+              <button id="clearWingsBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Helmet (Head)</h4>
+              <canvas id="helmetCanvas" width="64" height="64"></canvas>
+              <button id="selectHelmetBtn" class="small-btn">Select</button>
+              <button id="clearHelmetBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Armor (Body)</h4>
+              <canvas id="armorCanvas" width="64" height="64"></canvas>
+              <button id="selectArmorBtn" class="small-btn">Select</button>
+              <button id="clearArmorBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Pants (Legs)</h4>
+              <canvas id="pantsCanvas" width="64" height="64"></canvas>
+              <button id="selectPantsBtn" class="small-btn">Select</button>
+              <button id="clearPantsBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Boots (Feet)</h4>
+              <canvas id="bootsCanvas" width="64" height="64"></canvas>
+              <button id="selectBootsBtn" class="small-btn">Select</button>
+              <button id="clearBootsBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Beard (Face)</h4>
+              <canvas id="beardCanvas" width="64" height="64"></canvas>
+              <button id="selectBeardBtn" class="small-btn">Select</button>
+              <button id="clearBeardBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Left Hand</h4>
+              <canvas id="leftHandCanvas" width="64" height="64"></canvas>
+              <button id="selectLeftHandBtn" class="small-btn">Select</button>
+              <button id="clearLeftHandBtn" class="small-btn">Clear</button>
+            </div>
+            
+            <div class="addon-slot">
+              <h4>Right Hand</h4>
+              <canvas id="rightHandCanvas" width="64" height="64"></canvas>
+              <button id="selectRightHandBtn" class="small-btn">Select</button>
+              <button id="clearRightHandBtn" class="small-btn">Clear</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="outfit-preview">
+          <h3>Outfit Preview</h3>
+          <canvas id="outfitPreviewCanvas" width="128" height="128"></canvas>
+          <div class="button-group">
+            <button id="addOutfitBtn">Add Outfit</button>
+            <button id="updateOutfitBtn" style="display: none;">Update Outfit</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="outfits-list">
+        <h3>Saved Outfits</h3>
+        <div id="outfitsList" class="items-container"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="js/app.js"></script>
+  <script>
+    // Check user authentication
+    document.addEventListener('DOMContentLoaded', () => {
+      const userInfo = JSON.parse(sessionStorage.getItem('user') || '{"access":"none"}');
+      const adminOnly = document.querySelectorAll('.admin-only');
+      const usernameDisplay = document.getElementById('usernameDisplay');
+      const logoutBtn = document.getElementById('logoutBtn');
+      
+      // If not logged in, redirect to login page
+      if (!userInfo.username) {
+        window.location.href = '/login';
+        return;
+      }
+      
+      // User is logged in
+      
+      // Update username display
+      usernameDisplay.textContent = userInfo.username;
+      
+      // Check access level and show appropriate tabs
+      if (userInfo.access === 'admin' || userInfo.access === 'mod') {
+        // Show admin/mod elements
+        adminOnly.forEach(el => {
+          el.style.display = 'block';
+        });
+      } else {
+        // Regular user - redirect to game page
+        window.location.href = '/game';
+      }
+      
+      // Logout handler
+      logoutBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('user');
+        window.location.href = '/login';
+      });
+    });
+  </script>
+</body>
+</html> 

@@ -1,0 +1,134 @@
+{
+  "sectorId": "sector_0_0",
+  "name": "Eldoria Town",
+  "width": 20,
+  "height": 20,
+  "layers": [
+    [
+      {
+        "x": 0,
+        "y": 0,
+        "itemId": 1
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "itemId": 1
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "itemId": 12
+      },
+      {
+        "x": 19,
+        "y": 10,
+        "itemId": 12
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "itemId": 11
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "itemId": 11
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "itemId": 11
+      },
+      {
+        "x": 5,
+        "y": 6,
+        "itemId": 11
+      },
+      {
+        "x": 7,
+        "y": 6,
+        "itemId": 11
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "itemId": 11
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "itemId": 11
+      },
+      {
+        "x": 7,
+        "y": 7,
+        "itemId": 11
+      }
+    ],
+    [
+      {
+        "x": 10,
+        "y": 10,
+        "itemId": 16
+      },
+      {
+        "x": 12,
+        "y": 12,
+        "itemId": 16
+      }
+    ]
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "name": "Mayor",
+      "position": {
+        "x": 10,
+        "y": 5
+      },
+      "outfitId": 1,
+      "scriptFile": "scripts/npc/mayor.js",
+      "dialog": "Welcome to Eldoria Town!"
+    },
+    {
+      "id": 2,
+      "name": "Shopkeeper",
+      "position": {
+        "x": 6,
+        "y": 6
+      },
+      "outfitId": 2,
+      "scriptFile": "scripts/npc/shopkeeper.js",
+      "shopItems": [
+        {"itemId": 101, "price": 25, "name": "Health Potion"},
+        {"itemId": 102, "price": 50, "name": "Mana Potion"},
+        {"itemId": 103, "price": 150, "name": "Leather Armor"}
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "position": {
+        "x": 10,
+        "y": 0
+      },
+      "targetSector": {"x": 0, "y": -1},
+      "targetPosition": {"x": 10, "y": 19}
+    },
+    {
+      "position": {
+        "x": 19,
+        "y": 10
+      },
+      "targetSector": {"x": 1, "y": 0},
+      "targetPosition": {"x": 0, "y": 10}
+    }
+  ],
+  "spawnPoint": {
+    "x": 10,
+    "y": 10
+  },
+  "safeZone": true,
+  "regionType": "town"
+} 
