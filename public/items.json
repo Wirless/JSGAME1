@@ -465,7 +465,7 @@
     "id": 26,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -479,7 +479,7 @@
     "id": 27,
     "name": "cobble floor",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -493,7 +493,7 @@
     "id": 28,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -507,7 +507,7 @@
     "id": 29,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -521,7 +521,7 @@
     "id": 30,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -535,7 +535,7 @@
     "id": 31,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -549,7 +549,7 @@
     "id": 32,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -563,7 +563,7 @@
     "id": 33,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false
@@ -577,7 +577,7 @@
     "id": 34,
     "name": "cobble border",
     "properties": {
-      "walkable": false,
+      "walkable": true,
       "blocking": false,
       "useable": false,
       "pickupable": false

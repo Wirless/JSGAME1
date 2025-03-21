@@ -37,6 +37,10 @@ const gameState = {
     name: userInfo.username,
     outfit: 1,
     direction: 'south',
+    moveSpeed: 0.2,      // Movement speed (tiles per frame)
+    moveCooldown: 0,     // Cooldown counter for movement
+    moveDelay: 1000,      // Milliseconds between moves
+    lastMoveTime: 0,     // Last time the player moved
     stats: {
       strength: 10,
       defense: 5,
@@ -64,7 +68,9 @@ const gameState = {
     left: false,
     right: false
   },
-  activeChat: 'game'
+  activeChat: 'game',
+  lastFrameTime: 0,      // For handling frame timing
+  deltaTime: 0           // Time between frames
 };
 
 // Tileset image
@@ -98,13 +104,29 @@ function init() {
         .then(sectorData => {
           gameState.currentSector = sectorData;
           
-          // Place player at spawn point or random position
+          // Place player at spawn point from metadata
           if (initialSector.metadata && initialSector.metadata.spawnPoint) {
-            gameState.player.x = initialSector.metadata.spawnPoint.x;
-            gameState.player.y = initialSector.metadata.spawnPoint.y;
+            // Get spawn point coordinates from metadata
+            const spawnX = initialSector.metadata.spawnPoint.x;
+            const spawnY = initialSector.metadata.spawnPoint.y;
+            
+            // Check if the spawn point is walkable
+            const item = findItemAtTile(spawnX, spawnY);
+            if (item && item.properties && item.properties.walkable) {
+              gameState.player.x = spawnX;
+              gameState.player.y = spawnY;
+            } else {
+              // Fallback to a random walkable position
+              console.warn('Spawn point is not walkable, finding alternative position');
+              placePlayerAtRandomPosition();
+            }
           } else {
+            // No spawn point defined, use random position
             placePlayerAtRandomPosition();
           }
+          
+          // Center viewport on player
+          centerViewportOnPlayer();
           
           // Start game loop
           gameLoop();
@@ -190,9 +212,22 @@ function placePlayerAtRandomPosition() {
     // Find the item for this tile
     const item = gameState.items.find(item => item.id === itemId);
     
-    // Check if walkable
+    // Filter for good spawn positions - walkable grass tiles only
     if (item && item.properties && item.properties.walkable) {
-      walkableTiles.push({ x, y });
+      // Skip water borders and other non-ideal spawn points
+      if (item.name && (item.name.toLowerCase().includes('grass') || item.name.toLowerCase() === 'ground')) {
+        walkableTiles.push({ x, y });
+      }
+    }
+  }
+  
+  // If no grass/ground tiles found, use any walkable tile
+  if (walkableTiles.length === 0) {
+    for (const tile of groundLayer) {
+      const item = gameState.items.find(item => item.id === tile.itemId);
+      if (item && item.properties && item.properties.walkable) {
+        walkableTiles.push({ x: tile.x, y: tile.y });
+      }
     }
   }
   
@@ -202,11 +237,14 @@ function placePlayerAtRandomPosition() {
     gameState.player.x = randomTile.x;
     gameState.player.y = randomTile.y;
     
+    // Debug info
+    console.log(`Player placed at walkable tile (${gameState.player.x}, ${gameState.player.y})`);
+    
     // Center viewport on player
     centerViewportOnPlayer();
   } else {
     console.error('No walkable tiles found');
-    // Since we have a spawn point at 10,10, try that as a fallback
+    // Fallback to a fixed position
     gameState.player.x = 10;
     gameState.player.y = 10;
     centerViewportOnPlayer();
@@ -215,8 +253,9 @@ function placePlayerAtRandomPosition() {
 
 // Center viewport on player
 function centerViewportOnPlayer() {
-  gameState.viewport.x = gameState.player.x - Math.floor(gameState.viewport.width / 2);
-  gameState.viewport.y = gameState.player.y - Math.floor(gameState.viewport.height / 2);
+  // The player should be at the center of the viewport
+  gameState.viewport.x = Math.max(0, gameState.player.x - Math.floor(gameState.viewport.width / 2));
+  gameState.viewport.y = Math.max(0, gameState.player.y - Math.floor(gameState.viewport.height / 2));
   
   // Keep viewport within sector bounds
   constrainViewport();
@@ -308,6 +347,12 @@ function setupEventListeners() {
 
 // Handle player movement based on keyboard input
 function handlePlayerMovement() {
+  // Check if enough time has passed since the last move
+  const currentTime = Date.now();
+  if (currentTime - gameState.player.lastMoveTime < gameState.player.moveDelay) {
+    return; // Skip this frame if we're still in cooldown
+  }
+  
   // Store original position for collision detection
   const originalX = gameState.player.x;
   const originalY = gameState.player.y;
@@ -315,25 +360,36 @@ function handlePlayerMovement() {
   // Calculate new position based on keyboard input
   let newX = originalX;
   let newY = originalY;
+  let moved = false;
   
   if (gameState.keyboard.up) {
     newY--;
     gameState.player.direction = 'north';
+    moved = true;
   } else if (gameState.keyboard.down) {
     newY++;
     gameState.player.direction = 'south';
+    moved = true;
   } else if (gameState.keyboard.left) {
     newX--;
     gameState.player.direction = 'west';
+    moved = true;
   } else if (gameState.keyboard.right) {
     newX++;
     gameState.player.direction = 'east';
+    moved = true;
+  }
+  
+  // If no movement input, return early
+  if (!moved) {
+    return;
   }
   
   // Check if the player needs to move to a different sector
   const sectorChange = needSectorChange(newX, newY);
   if (sectorChange) {
     handleSectorChange(newX, newY);
+    gameState.player.lastMoveTime = currentTime; // Update last move time
     return; // Skip the rest of the movement handling since we're changing sectors
   }
   
@@ -345,6 +401,9 @@ function handlePlayerMovement() {
     
     // Center viewport on player
     centerViewportOnPlayer();
+    
+    // Update last move time
+    gameState.player.lastMoveTime = currentTime;
   }
 }
 
@@ -574,9 +633,9 @@ function renderPlayer() {
   // Don't render if player data or tileset image isn't loaded
   if (!gameState.player || !tilesetImage.complete || !gameState.outfits) return;
   
-  // Calculate screen position (center of viewport)
-  const screenX = Math.floor(canvas.width / 2) - (gameState.tileSize / 2);
-  const screenY = Math.floor(canvas.height / 2) - (gameState.tileSize / 2);
+  // Calculate screen position (player should be at center of screen)
+  const playerScreenX = (gameState.player.x - gameState.viewport.x) * gameState.tileSize;
+  const playerScreenY = (gameState.player.y - gameState.viewport.y) * gameState.tileSize;
   
   // Find the player's outfit
   const outfit = gameState.outfits.find(outfit => outfit.id === gameState.player.outfit);
@@ -588,14 +647,14 @@ function renderPlayer() {
     ctx.drawImage(
       tilesetImage,
       outfit.baseSprite.x * 32, outfit.baseSprite.y * 32, 32, 32,
-      screenX, screenY, gameState.tileSize, gameState.tileSize
+      playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
     );
   } else if (outfit.type === 'both' && outfit.baseSprite) {
     // Draw the base outfit
     ctx.drawImage(
       tilesetImage,
       outfit.baseSprite.x * 32, outfit.baseSprite.y * 32, 32, 32,
-      screenX, screenY, gameState.tileSize, gameState.tileSize
+      playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
     );
     
     // Draw addons if they exist
@@ -605,7 +664,7 @@ function renderPlayer() {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.armor.x * 32, outfit.addons.armor.y * 32, 32, 32,
-          screenX, screenY, gameState.tileSize, gameState.tileSize
+          playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
         );
       }
       
@@ -614,7 +673,7 @@ function renderPlayer() {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.leftHand.x * 32, outfit.addons.leftHand.y * 32, 32, 32,
-          screenX, screenY, gameState.tileSize, gameState.tileSize
+          playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
         );
       }
       
@@ -622,7 +681,7 @@ function renderPlayer() {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.rightHand.x * 32, outfit.addons.rightHand.y * 32, 32, 32,
-          screenX, screenY, gameState.tileSize, gameState.tileSize
+          playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
         );
       }
     }
@@ -632,7 +691,7 @@ function renderPlayer() {
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.font = '12px Arial';
-  ctx.fillText(gameState.player.name, screenX + (gameState.tileSize / 2), screenY - 5);
+  ctx.fillText(gameState.player.name, playerScreenX + (gameState.tileSize / 2), playerScreenY - 5);
   
   // Draw health bar
   const healthBarWidth = gameState.tileSize;
@@ -641,11 +700,11 @@ function renderPlayer() {
   
   // Background
   ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-  ctx.fillRect(screenX, screenY - 15, healthBarWidth, healthBarHeight);
+  ctx.fillRect(playerScreenX, playerScreenY - 15, healthBarWidth, healthBarHeight);
   
   // Health fill
   ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-  ctx.fillRect(screenX, screenY - 15, healthBarWidth * healthPercentage, healthBarHeight);
+  ctx.fillRect(playerScreenX, playerScreenY - 15, healthBarWidth * healthPercentage, healthBarHeight);
 }
 
 // Update stats display
@@ -709,7 +768,14 @@ function addChatMessage(message, channel) {
 }
 
 // Game loop
-function gameLoop() {
+function gameLoop(timestamp) {
+  // Calculate delta time for smooth movement
+  if (!gameState.lastFrameTime) {
+    gameState.lastFrameTime = timestamp;
+  }
+  gameState.deltaTime = timestamp - gameState.lastFrameTime;
+  gameState.lastFrameTime = timestamp;
+  
   // Handle input
   handlePlayerMovement();
   
@@ -721,6 +787,22 @@ function gameLoop() {
   
   // Schedule next frame
   requestAnimationFrame(gameLoop);
+}
+
+// Helper function to find item at specific tile
+function findItemAtTile(x, y) {
+  if (!gameState.currentSector || !gameState.currentSector.layers || !gameState.items) return null;
+  
+  // Check ground layer first
+  const groundLayer = gameState.currentSector.layers[0];
+  
+  for (const tile of groundLayer) {
+    if (tile.x === x && tile.y === y) {
+      return gameState.items.find(item => item.id === tile.itemId);
+    }
+  }
+  
+  return null;
 }
 
 // Start the game when the page loads

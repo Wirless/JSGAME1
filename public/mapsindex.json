@@ -20,7 +20,7 @@
         "east": { "targetSector": { "x": 1, "y": 0 }, "exitPoint": { "x": 0, "y": 10 } }
       },
       "metadata": {
-        "spawnPoint": { "x": 10, "y": 10 },
+        "spawnPoint": { "x": 12, "y": 5 },
         "safeZone": true,
         "shopCount": 4,
         "npcCount": 12
