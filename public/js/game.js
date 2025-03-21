@@ -21,7 +21,10 @@ if (!isLoggedIn) {
 
 // Game state
 const gameState = {
-  map: null,
+  worldData: null,       // Stores the mapsindex.json data
+  currentSector: null,   // Stores the current sector map data
+  activeSectorCoords: { x: 0, y: 0 }, // Current sector coordinates
+  sectors: new Map(),    // Cache of loaded sectors (Map of sector filename -> sector data)
   items: null,
   outfits: null,
   player: {
@@ -76,24 +79,49 @@ function init() {
   
   // Load resources
   Promise.all([
-    fetch('/api/map').then(res => res.json()),
+    fetch('/api/mapsindex').then(res => res.json()),
     fetch('/api/items').then(res => res.json()),
     fetch('/api/outfits').then(res => res.json())
   ])
-  .then(([mapData, itemsData, outfitsData]) => {
-    gameState.map = mapData;
+  .then(([worldData, itemsData, outfitsData]) => {
+    gameState.worldData = worldData;
     gameState.items = itemsData;
     gameState.outfits = outfitsData;
     
-    // Place player at a random walkable position
-    placePlayerAtRandomPosition();
-    
-    // Start game loop
-    gameLoop();
-    
-    // Add chat message to show game started
-    addChatMessage('Welcome to MSRE RPG!', 'server');
-    addChatMessage(`Welcome, ${userInfo.username}!`, 'server');
+    // Load the initial sector (currently only one sector in the world)
+    if (worldData.sectors && worldData.sectors.length > 0) {
+      const initialSector = worldData.sectors[0];
+      gameState.activeSectorCoords = initialSector.coordinates;
+      
+      // Load the sector data
+      loadSector(initialSector.filename)
+        .then(sectorData => {
+          gameState.currentSector = sectorData;
+          
+          // Place player at spawn point or random position
+          if (initialSector.metadata && initialSector.metadata.spawnPoint) {
+            gameState.player.x = initialSector.metadata.spawnPoint.x;
+            gameState.player.y = initialSector.metadata.spawnPoint.y;
+          } else {
+            placePlayerAtRandomPosition();
+          }
+          
+          // Start game loop
+          gameLoop();
+          
+          // Add chat messages
+          addChatMessage('Welcome to MSRE RPG!', 'server');
+          addChatMessage(`Welcome, ${userInfo.username}!`, 'server');
+          addChatMessage(`You are in ${initialSector.name || 'an unknown location'}.`, 'server');
+        })
+        .catch(error => {
+          console.error('Error loading sector:', error);
+          addChatMessage('Error loading map sector. Please refresh.', 'server');
+        });
+    } else {
+      console.error('No sectors found in world data');
+      addChatMessage('Error: No map sectors found. Please contact an administrator.', 'server');
+    }
   })
   .catch(error => {
     console.error('Error loading game data:', error);
@@ -102,6 +130,29 @@ function init() {
   
   // Set up event listeners
   setupEventListeners();
+}
+
+// Load a sector by filename
+async function loadSector(filename) {
+  // Check if sector is already loaded in cache
+  if (gameState.sectors.has(filename)) {
+    return gameState.sectors.get(filename);
+  }
+  
+  // Load sector from server
+  try {
+    const response = await fetch(`/api/sector/${filename}`);
+    if (!response.ok) {
+      throw new Error(`Failed to load sector: ${response.status} ${response.statusText}`);
+    }
+    
+    const sectorData = await response.json();
+    gameState.sectors.set(filename, sectorData); // Cache the sector
+    return sectorData;
+  } catch (error) {
+    console.error('Error loading sector:', error);
+    throw error;
+  }
 }
 
 // Resize canvas to fit container
@@ -122,40 +173,26 @@ function resizeCanvas() {
 
 // Place player at random walkable position
 function placePlayerAtRandomPosition() {
-  if (!gameState.map || !gameState.map.layers || !gameState.map.layers.length) {
+  if (!gameState.currentSector || !gameState.currentSector.layers || !gameState.currentSector.layers.length) {
     console.error('Map data not properly loaded');
     return;
   }
   
-  // Find ground/floor layer
-  const groundLayer = gameState.map.layers.find(layer => 
-    layer.name === 'Ground' || layer.name === 'Floor');
-  
-  if (!groundLayer) {
-    console.error('Ground layer not found in map');
-    gameState.player.x = 5;
-    gameState.player.y = 5;
-    return;
-  }
-  
-  // Find walkable tiles
+  // Find walkable tiles from the current sector
   const walkableTiles = [];
+  const groundLayer = gameState.currentSector.layers[0]; // Assuming first layer is ground
   
-  for (let y = 0; y < gameState.map.height; y++) {
-    for (let x = 0; x < gameState.map.width; x++) {
-      const tileIndex = y * gameState.map.width + x;
-      const tileId = groundLayer.data[tileIndex];
-      
-      // Skip if no tile
-      if (tileId === 0) continue;
-      
-      // Find the item for this tile
-      const item = gameState.items.find(item => item.id === tileId);
-      
-      // Check if walkable
-      if (item && item.walkable) {
-        walkableTiles.push({ x, y });
-      }
+  for (const tile of groundLayer) {
+    const x = tile.x;
+    const y = tile.y;
+    const itemId = tile.itemId;
+    
+    // Find the item for this tile
+    const item = gameState.items.find(item => item.id === itemId);
+    
+    // Check if walkable
+    if (item && item.walkable) {
+      walkableTiles.push({ x, y });
     }
   }
   
@@ -179,19 +216,19 @@ function centerViewportOnPlayer() {
   gameState.viewport.x = gameState.player.x - Math.floor(gameState.viewport.width / 2);
   gameState.viewport.y = gameState.player.y - Math.floor(gameState.viewport.height / 2);
   
-  // Keep viewport within map bounds
+  // Keep viewport within sector bounds
   constrainViewport();
 }
 
-// Constrain viewport to map bounds
+// Constrain viewport to sector bounds
 function constrainViewport() {
-  if (!gameState.map) return;
+  if (!gameState.currentSector) return;
   
   gameState.viewport.x = Math.max(0, gameState.viewport.x);
   gameState.viewport.y = Math.max(0, gameState.viewport.y);
   
-  const maxX = gameState.map.width - gameState.viewport.width;
-  const maxY = gameState.map.height - gameState.viewport.height;
+  const maxX = gameState.currentSector.width - gameState.viewport.width;
+  const maxY = gameState.currentSector.height - gameState.viewport.height;
   
   gameState.viewport.x = Math.min(maxX, gameState.viewport.x);
   gameState.viewport.y = Math.min(maxY, gameState.viewport.y);
@@ -288,6 +325,12 @@ function handlePlayerMovement() {
     gameState.player.direction = 'east';
   }
   
+  // Check if we need to move to a different sector
+  if (needSectorChange(newX, newY)) {
+    handleSectorChange(newX, newY);
+    return;
+  }
+  
   // Check if the movement is valid (no collision)
   if (isTileWalkable(newX, newY)) {
     gameState.player.x = newX;
@@ -298,29 +341,128 @@ function handlePlayerMovement() {
   }
 }
 
+// Check if player is moving to a different sector
+function needSectorChange(x, y) {
+  if (!gameState.currentSector) return false;
+  
+  // Check if player is at a sector boundary
+  return (
+    x < 0 || 
+    y < 0 || 
+    x >= gameState.currentSector.width || 
+    y >= gameState.currentSector.height
+  );
+}
+
+// Handle sector change
+function handleSectorChange(x, y) {
+  if (!gameState.worldData || !gameState.worldData.sectors) return;
+  
+  // Find the current sector in world data
+  const currentSectorData = gameState.worldData.sectors.find(
+    s => s.coordinates.x === gameState.activeSectorCoords.x && 
+         s.coordinates.y === gameState.activeSectorCoords.y
+  );
+  
+  if (!currentSectorData || !currentSectorData.connections) {
+    console.error('Current sector or connections not found');
+    return;
+  }
+  
+  // Determine which direction the player is moving
+  let direction;
+  
+  if (x < 0) direction = 'west';
+  else if (x >= gameState.currentSector.width) direction = 'east';
+  else if (y < 0) direction = 'north';
+  else if (y >= gameState.currentSector.height) direction = 'south';
+  
+  // Check if there's a connection in that direction
+  if (!currentSectorData.connections[direction]) {
+    console.log(`No connection found in direction: ${direction}`);
+    return;
+  }
+  
+  // Get target sector coordinates
+  const targetSectorCoords = currentSectorData.connections[direction].targetSector;
+  
+  // Find target sector in world data
+  const targetSectorData = gameState.worldData.sectors.find(
+    s => s.coordinates.x === targetSectorCoords.x && 
+         s.coordinates.y === targetSectorCoords.y
+  );
+  
+  if (!targetSectorData) {
+    console.error(`Target sector not found at coordinates: ${targetSectorCoords.x}, ${targetSectorCoords.y}`);
+    return;
+  }
+  
+  // Load the target sector
+  loadSector(targetSectorData.filename)
+    .then(sectorData => {
+      // Update current sector data
+      gameState.currentSector = sectorData;
+      gameState.activeSectorCoords = targetSectorCoords;
+      
+      // Set player position in new sector
+      const exitPoint = currentSectorData.connections[direction].exitPoint;
+      if (exitPoint) {
+        gameState.player.x = exitPoint.x;
+        gameState.player.y = exitPoint.y;
+      } else {
+        // Default positions if exit point not specified
+        switch (direction) {
+          case 'west':
+            gameState.player.x = gameState.currentSector.width - 1;
+            break;
+          case 'east':
+            gameState.player.x = 0;
+            break;
+          case 'north':
+            gameState.player.y = gameState.currentSector.height - 1;
+            break;
+          case 'south':
+            gameState.player.y = 0;
+            break;
+        }
+      }
+      
+      // Center viewport on player in new sector
+      centerViewportOnPlayer();
+      
+      // Notify player
+      addChatMessage(`You have entered ${targetSectorData.name || 'a new area'}.`, 'server');
+    })
+    .catch(error => {
+      console.error('Error loading target sector:', error);
+      addChatMessage('Error changing areas. Please try again.', 'server');
+    });
+}
+
 // Check if a tile is walkable
 function isTileWalkable(x, y) {
-  if (!gameState.map || !gameState.items) return false;
+  if (!gameState.currentSector || !gameState.items) return false;
   
   // Out of bounds check
-  if (x < 0 || y < 0 || x >= gameState.map.width || y >= gameState.map.height) {
+  if (x < 0 || y < 0 || x >= gameState.currentSector.width || y >= gameState.currentSector.height) {
     return false;
   }
   
   // Check each layer for non-walkable items
-  for (const layer of gameState.map.layers) {
-    const tileIndex = y * gameState.map.width + x;
-    const tileId = layer.data[tileIndex];
-    
-    // Skip empty tiles
-    if (tileId === 0) continue;
-    
-    // Find the item
-    const item = gameState.items.find(item => item.id === tileId);
-    
-    // If item exists and is not walkable, return false
-    if (item && !item.walkable) {
-      return false;
+  for (const layer of gameState.currentSector.layers) {
+    for (const tile of layer) {
+      // Find tiles at the target position
+      if (tile.x === x && tile.y === y) {
+        const itemId = tile.itemId;
+        
+        // Find the item
+        const item = gameState.items.find(item => item.id === itemId);
+        
+        // If item exists and is not walkable, return false
+        if (item && !item.walkable) {
+          return false;
+        }
+      }
     }
   }
   
@@ -333,7 +475,7 @@ function render() {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  if (!gameState.map || !gameState.items) return;
+  if (!gameState.currentSector || !gameState.items) return;
   
   // Render map layers
   renderMap();
@@ -351,41 +493,38 @@ function renderMap() {
   const endY = startY + gameState.viewport.height;
   
   // Render each layer
-  for (const layer of gameState.map.layers) {
-    for (let y = startY; y < endY; y++) {
-      for (let x = startX; x < endX; x++) {
-        // Skip out-of-bounds tiles
-        if (x < 0 || y < 0 || x >= gameState.map.width || y >= gameState.map.height) {
-          continue;
-        }
+  for (const layer of gameState.currentSector.layers) {
+    // Iterate through tiles in the layer
+    for (const tile of layer) {
+      const x = tile.x;
+      const y = tile.y;
+      const itemId = tile.itemId;
+      
+      // Skip if not in viewport
+      if (x < startX || y < startY || x >= endX || y >= endY) {
+        continue;
+      }
+      
+      // Find the item
+      const item = gameState.items.find(item => item.id === itemId);
+      
+      if (item && item.spriteX !== undefined && item.spriteY !== undefined) {
+        // Calculate position on canvas
+        const canvasX = (x - startX) * gameState.tileSize;
+        const canvasY = (y - startY) * gameState.tileSize;
         
-        const tileIndex = y * gameState.map.width + x;
-        const tileId = layer.data[tileIndex];
-        
-        // Skip empty tiles
-        if (tileId === 0) continue;
-        
-        // Find the item
-        const item = gameState.items.find(item => item.id === tileId);
-        
-        if (item && item.spriteX !== undefined && item.spriteY !== undefined) {
-          // Calculate position on canvas
-          const canvasX = (x - startX) * gameState.tileSize;
-          const canvasY = (y - startY) * gameState.tileSize;
-          
-          // Draw the tile
-          ctx.drawImage(
-            tilesetImage,
-            item.spriteX * gameState.tileSize,
-            item.spriteY * gameState.tileSize,
-            gameState.tileSize,
-            gameState.tileSize,
-            canvasX,
-            canvasY,
-            gameState.tileSize,
-            gameState.tileSize
-          );
-        }
+        // Draw the tile
+        ctx.drawImage(
+          tilesetImage,
+          item.spriteX * gameState.tileSize,
+          item.spriteY * gameState.tileSize,
+          gameState.tileSize,
+          gameState.tileSize,
+          canvasX,
+          canvasY,
+          gameState.tileSize,
+          gameState.tileSize
+        );
       }
     }
   }

@@ -46,6 +46,9 @@ let selectedTileX = -1;
 let selectedTileY = -1;
 let selectedTileItemIndex = -1;
 let eraseMode = false; // Flag for erase mode
+let isDrawing = false; // Flag for drag drawing
+let lastDrawnTileX = -1; // Last drawn tile X position
+let lastDrawnTileY = -1; // Last drawn tile Y position
 
 // DOM Elements - Item Editor
 const spriteSheetCanvas = document.getElementById('spriteSheetCanvas');
@@ -67,6 +70,7 @@ const quickVariantsContainer = document.getElementById('quickVariantsContainer')
 const itemEditorTab = document.getElementById('itemEditorTab');
 const mapEditorTab = document.getElementById('mapEditorTab');
 const outfitEditorTab = document.getElementById('outfitEditorTab');
+const worldEditorTab = document.getElementById('worldEditorTab');
 const gameClientTab = document.getElementById('gameClientTab');
 const itemEditorSection = document.getElementById('itemEditorSection');
 const mapEditorSection = document.getElementById('mapEditorSection');
@@ -270,7 +274,9 @@ function init() {
   
   // Add event listeners for Map Editor
   mapCanvas.addEventListener('mousemove', handleMapMouseMove);
-  mapCanvas.addEventListener('click', handleMapClick);
+  mapCanvas.addEventListener('mousedown', handleMapMouseDown);
+  mapCanvas.addEventListener('mouseup', handleMapMouseUp);
+  mapCanvas.addEventListener('mouseleave', handleMapMouseUp);
   mapCanvas.addEventListener('contextmenu', handleMapRightClick);
   createMapBtn.addEventListener('click', createOrResetMap);
   layerUpBtn.addEventListener('click', layerUp);
@@ -316,7 +322,8 @@ function init() {
   itemEditorTab.addEventListener('click', () => switchTab('item'));
   mapEditorTab.addEventListener('click', () => switchTab('map'));
   outfitEditorTab.addEventListener('click', () => switchTab('outfit'));
-  gameClientTab.addEventListener('click', () => window.location.href = '/game');
+  worldEditorTab.addEventListener('click', () => switchTab('world'));
+  gameClientTab.addEventListener('click', () => switchTab('game'));
   
   // Map dimension inputs
   mapWidthInput.addEventListener('change', validateMapDimensions);
@@ -931,36 +938,34 @@ function newItemsJson() {
 
 // Tab switching function
 function switchTab(tab) {
+  // Hide all sections
+  itemEditorSection.classList.remove('active');
+  mapEditorSection.classList.remove('active');
+  outfitEditorSection.classList.remove('active');
+  
+  // Reset active class on tabs
+  itemEditorTab.classList.remove('active');
+  mapEditorTab.classList.remove('active');
+  outfitEditorTab.classList.remove('active');
+  worldEditorTab.classList.remove('active');
+  gameClientTab.classList.remove('active');
+  
+  // Show selected section and set active class on tab
   if (tab === 'item') {
-    itemEditorTab.classList.add('active');
-    mapEditorTab.classList.remove('active');
-    outfitEditorTab.classList.remove('active');
-    gameClientTab.classList.remove('active');
     itemEditorSection.classList.add('active');
-    mapEditorSection.classList.remove('active');
-    outfitEditorSection.classList.remove('active');
+    itemEditorTab.classList.add('active');
   } else if (tab === 'map') {
-    itemEditorTab.classList.remove('active');
-    mapEditorTab.classList.add('active');
-    outfitEditorTab.classList.remove('active');
-    gameClientTab.classList.remove('active');
-    itemEditorSection.classList.remove('active');
     mapEditorSection.classList.add('active');
-    outfitEditorSection.classList.remove('active');
-    
-    // Refresh map canvas when switching to map tab
-    drawMap();
+    mapEditorTab.classList.add('active');
   } else if (tab === 'outfit') {
-    itemEditorTab.classList.remove('active');
-    mapEditorTab.classList.remove('active');
-    outfitEditorTab.classList.add('active');
-    gameClientTab.classList.remove('active');
-    itemEditorSection.classList.remove('active');
-    mapEditorSection.classList.remove('active');
     outfitEditorSection.classList.add('active');
-    
-    // Refresh outfit editor when switching to outfit tab
-    drawOutfitPreview();
+    outfitEditorTab.classList.add('active');
+  } else if (tab === 'world') {
+    // Redirect to world editor page
+    window.location.href = '/world-editor';
+  } else if (tab === 'game') {
+    // Redirect to game client
+    window.location.href = '/game';
   }
 }
 
@@ -1245,10 +1250,41 @@ function handleMapMouseMove(event) {
   if (document.getElementById('mapCoordinates')) {
     document.getElementById('mapCoordinates').textContent = `X: ${tileX}, Y: ${tileY}`;
   }
+  
+  // If we are drawing (mouse down) and have moved to a new tile
+  if (isDrawing && (tileX !== lastDrawnTileX || tileY !== lastDrawnTileY)) {
+    // Make sure we're within bounds
+    if (tileX >= 0 && tileX < mapData.width && tileY >= 0 && tileY < mapData.height) {
+      // Update selected tile
+      selectedTileX = tileX;
+      selectedTileY = tileY;
+      
+      // If we are in erase mode, remove item
+      if (eraseMode) {
+        removeItemAtTile(tileX, tileY, currentLayer);
+      } 
+      // If we have a selected item, add it to the map
+      else if (selectedItemId !== null) {
+        addItemToTile(tileX, tileY, currentLayer, selectedItemId);
+      }
+      
+      // Update the last drawn position
+      lastDrawnTileX = tileX;
+      lastDrawnTileY = tileY;
+      
+      // Redraw the map
+      drawMap();
+    }
+  }
 }
 
-// Handle clicking on the map
-function handleMapClick(event) {
+// Handle mouse down on the map (start drawing)
+function handleMapMouseDown(event) {
+  // Only process left mouse button
+  if (event.button !== 0) return;
+  
+  isDrawing = true;
+  
   const rect = mapCanvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -1279,11 +1315,29 @@ function handleMapClick(event) {
     addItemToTile(selectedTileX, selectedTileY, currentLayer, selectedItemId);
   }
   
+  // Remember the last drawn position
+  lastDrawnTileX = tileX;
+  lastDrawnTileY = tileY;
+  
   // Display items on this tile
   displayTileItems(selectedTileX, selectedTileY);
   
   // Redraw the map
   drawMap();
+}
+
+// Handle mouse up on the map (stop drawing)
+function handleMapMouseUp(event) {
+  isDrawing = false;
+  lastDrawnTileX = -1;
+  lastDrawnTileY = -1;
+}
+
+// Replace the old handleMapClick function
+function handleMapClick(event) {
+  // This function is now handled by handleMapMouseDown
+  // Kept for compatibility with any existing references
+  handleMapMouseDown(event);
 }
 
 // Add an item to a tile

@@ -36,6 +36,10 @@ app.get('/editor', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/world-editor', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'world-editor.html'));
+});
+
 // Default route sends to login
 app.get('/', (req, res) => {
   res.redirect('/login');
@@ -163,7 +167,7 @@ function createDefaultAdmin() {
   const adminPath = path.join(accountsDir, 'admin.json');
   if (!fs.existsSync(adminPath)) {
     // Create default admin
-    const password = 'admin123';
+    const password = 'admin123'; //warning: this is a default password and should be changed
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
     
@@ -251,6 +255,82 @@ app.get('/api/map', (req, res) => {
     } else {
       res.json({ width: 20, height: 20, layers: [] });
     }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// API endpoint to load map index (world data)
+app.get('/api/mapsindex', (req, res) => {
+  try {
+    if (fs.existsSync('mapsindex.json')) {
+      const mapsIndex = JSON.parse(fs.readFileSync('mapsindex.json', 'utf8'));
+      res.json(mapsIndex);
+    } else {
+      res.json({ 
+        worldName: "Default World",
+        worldVersion: "0.1.0",
+        worldSize: { width: 1, height: 1 },
+        sectors: [],
+        regionTypes: {}
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// API endpoint to save map index (world data)
+app.post('/api/mapsindex', (req, res) => {
+  try {
+    const mapsIndex = req.body;
+    fs.writeFileSync('mapsindex.json', JSON.stringify(mapsIndex, null, 2));
+    res.json({ success: true, message: 'World data saved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// API endpoint to load specific map sector
+app.get('/api/sector/:filename', (req, res) => {
+  try {
+    const filePath = req.params.filename;
+    
+    // Security check to prevent directory traversal
+    if (filePath.includes('..') || !filePath.endsWith('.json')) {
+      return res.status(400).json({ success: false, message: 'Invalid sector filename' });
+    }
+    
+    if (fs.existsSync(filePath)) {
+      const sector = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      res.json(sector);
+    } else {
+      res.status(404).json({ success: false, message: 'Sector not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// API endpoint to save specific map sector
+app.post('/api/sector/:filename', (req, res) => {
+  try {
+    const filePath = req.params.filename;
+    const sectorData = req.body;
+    
+    // Security check to prevent directory traversal
+    if (filePath.includes('..') || !filePath.endsWith('.json')) {
+      return res.status(400).json({ success: false, message: 'Invalid sector filename' });
+    }
+    
+    // Ensure directory exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    fs.writeFileSync(filePath, JSON.stringify(sectorData, null, 2));
+    res.json({ success: true, message: 'Sector saved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
