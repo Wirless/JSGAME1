@@ -69,7 +69,7 @@ const gameState = {
 
 // Tileset image
 const tilesetImage = new Image();
-tilesetImage.src = 'tileset.png';
+tilesetImage.src = '/tileset.png';
 
 // Initialize the game
 function init() {
@@ -141,7 +141,6 @@ async function loadSector(filename) {
   
   // Load sector from server
   try {
-    // Extract just the filename without the path for the API request
     const response = await fetch(`/api/sector/${filename}`);
     if (!response.ok) {
       throw new Error(`Failed to load sector: ${response.status} ${response.statusText}`);
@@ -192,7 +191,7 @@ function placePlayerAtRandomPosition() {
     const item = gameState.items.find(item => item.id === itemId);
     
     // Check if walkable
-    if (item && item.walkable) {
+    if (item && item.properties && item.properties.walkable) {
       walkableTiles.push({ x, y });
     }
   }
@@ -207,8 +206,10 @@ function placePlayerAtRandomPosition() {
     centerViewportOnPlayer();
   } else {
     console.error('No walkable tiles found');
-    gameState.player.x = 5;
-    gameState.player.y = 5;
+    // Since we have a spawn point at 10,10, try that as a fallback
+    gameState.player.x = 10;
+    gameState.player.y = 10;
+    centerViewportOnPlayer();
   }
 }
 
@@ -305,10 +306,15 @@ function setupEventListeners() {
   });
 }
 
-// Handle player movement
+// Handle player movement based on keyboard input
 function handlePlayerMovement() {
-  let newX = gameState.player.x;
-  let newY = gameState.player.y;
+  // Store original position for collision detection
+  const originalX = gameState.player.x;
+  const originalY = gameState.player.y;
+  
+  // Calculate new position based on keyboard input
+  let newX = originalX;
+  let newY = originalY;
   
   if (gameState.keyboard.up) {
     newY--;
@@ -316,9 +322,7 @@ function handlePlayerMovement() {
   } else if (gameState.keyboard.down) {
     newY++;
     gameState.player.direction = 'south';
-  }
-  
-  if (gameState.keyboard.left) {
+  } else if (gameState.keyboard.left) {
     newX--;
     gameState.player.direction = 'west';
   } else if (gameState.keyboard.right) {
@@ -326,18 +330,20 @@ function handlePlayerMovement() {
     gameState.player.direction = 'east';
   }
   
-  // Check if we need to move to a different sector
-  if (needSectorChange(newX, newY)) {
+  // Check if the player needs to move to a different sector
+  const sectorChange = needSectorChange(newX, newY);
+  if (sectorChange) {
     handleSectorChange(newX, newY);
-    return;
+    return; // Skip the rest of the movement handling since we're changing sectors
   }
   
-  // Check if the movement is valid (no collision)
+  // Check if the new position is walkable
   if (isTileWalkable(newX, newY)) {
+    // Update player position
     gameState.player.x = newX;
     gameState.player.y = newY;
     
-    // Update viewport to center player
+    // Center viewport on player
     centerViewportOnPlayer();
   }
 }
@@ -440,35 +446,46 @@ function handleSectorChange(x, y) {
     });
 }
 
-// Check if a tile is walkable
+// Check if the tile at the given coordinates is walkable
 function isTileWalkable(x, y) {
-  if (!gameState.currentSector || !gameState.items) return false;
-  
-  // Out of bounds check
-  if (x < 0 || y < 0 || x >= gameState.currentSector.width || y >= gameState.currentSector.height) {
+  // Check map boundaries
+  if (x < 0 || y < 0 || 
+      x >= gameState.currentSector.width || 
+      y >= gameState.currentSector.height) {
     return false;
   }
   
-  // Check each layer for non-walkable items
-  for (const layer of gameState.currentSector.layers) {
+  // Check for blocking items on all layers
+  for (let layerIndex = 0; layerIndex < gameState.currentSector.layers.length; layerIndex++) {
+    const layer = gameState.currentSector.layers[layerIndex];
+    
+    // Find items on this tile
     for (const tile of layer) {
-      // Find tiles at the target position
       if (tile.x === x && tile.y === y) {
-        const itemId = tile.itemId;
+        // Get the item data
+        const item = gameState.items.find(item => item.id === tile.itemId);
         
-        // Find the item
-        const item = gameState.items.find(item => item.id === itemId);
-        
-        // If item exists and is not walkable, return false
-        if (item && !item.walkable) {
+        // If the item is blocking, this tile is not walkable
+        if (item && item.properties && item.properties.blocking) {
           return false;
         }
       }
     }
   }
   
-  // All checks passed, tile is walkable
-  return true;
+  // Check if there's at least one walkable tile
+  let hasWalkableTile = false;
+  for (const tile of gameState.currentSector.layers[0]) { // Check ground layer
+    if (tile.x === x && tile.y === y) {
+      const item = gameState.items.find(item => item.id === tile.itemId);
+      if (item && item.properties && item.properties.walkable) {
+        hasWalkableTile = true;
+        break;
+      }
+    }
+  }
+  
+  return hasWalkableTile;
 }
 
 // Render game
@@ -487,85 +504,148 @@ function render() {
 
 // Render map layers
 function renderMap() {
-  // Get the visible area
-  const startX = gameState.viewport.x;
-  const startY = gameState.viewport.y;
-  const endX = startX + gameState.viewport.width;
-  const endY = startY + gameState.viewport.height;
+  // Don't render if sector data or tileset image isn't loaded
+  if (!gameState.currentSector || !tilesetImage.complete) return;
+  
+  // Clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   // Render each layer
-  for (const layer of gameState.currentSector.layers) {
-    // Iterate through tiles in the layer
+  for (let layerIndex = 0; layerIndex < gameState.currentSector.layers.length; layerIndex++) {
+    const layer = gameState.currentSector.layers[layerIndex];
+    
+    // Skip empty layers
+    if (!layer || layer.length === 0) continue;
+    
+    // Render each tile in the layer
     for (const tile of layer) {
-      const x = tile.x;
-      const y = tile.y;
-      const itemId = tile.itemId;
+      // Calculate screen position
+      const screenX = (tile.x - gameState.viewport.x) * gameState.tileSize;
+      const screenY = (tile.y - gameState.viewport.y) * gameState.tileSize;
       
-      // Skip if not in viewport
-      if (x < startX || y < startY || x >= endX || y >= endY) {
+      // Skip rendering if outside viewport
+      if (screenX < -gameState.tileSize || screenY < -gameState.tileSize ||
+          screenX > canvas.width || screenY > canvas.height) {
         continue;
       }
       
-      // Find the item
-      const item = gameState.items.find(item => item.id === itemId);
+      // Find the item data for this tile
+      const item = gameState.items.find(item => item.id === tile.itemId);
+      if (!item) continue;
       
-      if (item && item.spriteX !== undefined && item.spriteY !== undefined) {
-        // Calculate position on canvas
-        const canvasX = (x - startX) * gameState.tileSize;
-        const canvasY = (y - startY) * gameState.tileSize;
+      // Handle animated items
+      if (item.animated && item.sprites && item.sprites.length > 0) {
+        // Calculate animation frame
+        const frameInterval = item.animationSpeed || 1000;
+        const frameCount = item.sprites.length;
+        const frameIndex = Math.floor((Date.now() % (frameInterval * frameCount)) / frameInterval);
+        const sprite = item.sprites[frameIndex];
         
-        // Draw the tile
+        // Draw the sprite
         ctx.drawImage(
           tilesetImage,
-          item.spriteX * gameState.tileSize,
-          item.spriteY * gameState.tileSize,
-          gameState.tileSize,
-          gameState.tileSize,
-          canvasX,
-          canvasY,
-          gameState.tileSize,
-          gameState.tileSize
+          sprite.x * 32, sprite.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
+        );
+      } 
+      // Handle items with single sprite
+      else if (item.sprite) {
+        ctx.drawImage(
+          tilesetImage,
+          item.sprite.x * 32, item.sprite.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+      // Handle items with multiple sprites (non-animated)
+      else if (item.sprites && item.sprites.length > 0) {
+        const sprite = item.sprites[0]; // Use the first sprite
+        ctx.drawImage(
+          tilesetImage,
+          sprite.x * 32, sprite.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
         );
       }
     }
   }
 }
 
-// Render player
+// Render the player character
 function renderPlayer() {
-  // Find player outfit
-  const outfit = gameState.outfits.find(o => o.id === gameState.player.outfit);
+  // Don't render if player data or tileset image isn't loaded
+  if (!gameState.player || !tilesetImage.complete || !gameState.outfits) return;
   
-  if (!outfit) {
-    console.error('Player outfit not found');
-    return;
+  // Calculate screen position (center of viewport)
+  const screenX = Math.floor(canvas.width / 2) - (gameState.tileSize / 2);
+  const screenY = Math.floor(canvas.height / 2) - (gameState.tileSize / 2);
+  
+  // Find the player's outfit
+  const outfit = gameState.outfits.find(outfit => outfit.id === gameState.player.outfit);
+  if (!outfit) return;
+  
+  // Draw the player
+  if (outfit.type === 'full') {
+    // Single sprite outfit
+    ctx.drawImage(
+      tilesetImage,
+      outfit.baseSprite.x * 32, outfit.baseSprite.y * 32, 32, 32,
+      screenX, screenY, gameState.tileSize, gameState.tileSize
+    );
+  } else if (outfit.type === 'both' && outfit.baseSprite) {
+    // Draw the base outfit
+    ctx.drawImage(
+      tilesetImage,
+      outfit.baseSprite.x * 32, outfit.baseSprite.y * 32, 32, 32,
+      screenX, screenY, gameState.tileSize, gameState.tileSize
+    );
+    
+    // Draw addons if they exist
+    if (outfit.addons) {
+      // Draw armor
+      if (outfit.addons.armor) {
+        ctx.drawImage(
+          tilesetImage,
+          outfit.addons.armor.x * 32, outfit.addons.armor.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+      
+      // Draw weapons/items in hands
+      if (outfit.addons.leftHand) {
+        ctx.drawImage(
+          tilesetImage,
+          outfit.addons.leftHand.x * 32, outfit.addons.leftHand.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+      
+      if (outfit.addons.rightHand) {
+        ctx.drawImage(
+          tilesetImage,
+          outfit.addons.rightHand.x * 32, outfit.addons.rightHand.y * 32, 32, 32,
+          screenX, screenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+    }
   }
   
-  // Get direction offsets
-  let directionOffset = 0;
-  switch (gameState.player.direction) {
-    case 'north': directionOffset = 3; break;
-    case 'east': directionOffset = 2; break;
-    case 'south': directionOffset = 0; break;
-    case 'west': directionOffset = 1; break;
-  }
+  // Draw player name above the character
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.font = '12px Arial';
+  ctx.fillText(gameState.player.name, screenX + (gameState.tileSize / 2), screenY - 5);
   
-  // Calculate position on canvas
-  const canvasX = (gameState.player.x - gameState.viewport.x) * gameState.tileSize;
-  const canvasY = (gameState.player.y - gameState.viewport.y) * gameState.tileSize;
+  // Draw health bar
+  const healthBarWidth = gameState.tileSize;
+  const healthBarHeight = 3;
+  const healthPercentage = gameState.player.health / gameState.player.maxHealth;
   
-  // Draw player
-  ctx.drawImage(
-    tilesetImage,
-    outfit.spriteX * gameState.tileSize,
-    (outfit.spriteY + directionOffset) * gameState.tileSize,
-    gameState.tileSize,
-    gameState.tileSize,
-    canvasX,
-    canvasY,
-    gameState.tileSize,
-    gameState.tileSize
-  );
+  // Background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(screenX, screenY - 15, healthBarWidth, healthBarHeight);
+  
+  // Health fill
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+  ctx.fillRect(screenX, screenY - 15, healthBarWidth * healthPercentage, healthBarHeight);
 }
 
 // Update stats display

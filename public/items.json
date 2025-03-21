@@ -1,0 +1,1283 @@
+[
+  {
+    "id": 1,
+    "name": "Grass",
+    "sprite": {
+      "x": 0,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 2,
+    "name": "Sand",
+    "sprite": {
+      "x": 7,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 3,
+    "name": "Sand",
+    "sprite": {
+      "x": 8,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 4,
+    "name": "Sand",
+    "sprite": {
+      "x": 9,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 5,
+    "name": "Sand",
+    "sprite": {
+      "x": 10,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 6,
+    "name": "Sand",
+    "sprite": {
+      "x": 11,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 7,
+    "name": "Sand",
+    "sprite": {
+      "x": 12,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 8,
+    "name": "Sand",
+    "sprite": {
+      "x": 13,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 9,
+    "name": "Sand",
+    "sprite": {
+      "x": 14,
+      "y": 15
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 10,
+    "name": "Sand",
+    "sprite": {
+      "x": 61,
+      "y": 14
+    },
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    }
+  },
+  {
+    "id": 11,
+    "name": "Stone Wall",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 53,
+        "y": 17
+      },
+      {
+        "x": 54,
+        "y": 17
+      },
+      {
+        "x": 55,
+        "y": 17
+      },
+      {
+        "x": 56,
+        "y": 17
+      },
+      {
+        "x": 57,
+        "y": 17
+      },
+      {
+        "x": 58,
+        "y": 17
+      },
+      {
+        "x": 59,
+        "y": 17
+      },
+      {
+        "x": 60,
+        "y": 17
+      },
+      {
+        "x": 61,
+        "y": 17
+      },
+      {
+        "x": 62,
+        "y": 17
+      },
+      {
+        "x": 63,
+        "y": 17
+      },
+      {
+        "x": 52,
+        "y": 17
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "name": "Stairs",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 5,
+      "y": 45
+    },
+    "floorChange": 1
+  },
+  {
+    "id": 13,
+    "name": "stairs",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 4,
+      "y": 45
+    },
+    "floorChange": -1
+  },
+  {
+    "id": 14,
+    "name": "lava",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 59,
+      "y": 44
+    }
+  },
+  {
+    "id": 15,
+    "name": "Dark Rock",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 8,
+        "y": 13
+      },
+      {
+        "x": 9,
+        "y": 13
+      },
+      {
+        "x": 10,
+        "y": 13
+      },
+      {
+        "x": 11,
+        "y": 13
+      },
+      {
+        "x": 12,
+        "y": 13
+      },
+      {
+        "x": 13,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "name": "torch",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 14,
+        "y": 12
+      },
+      {
+        "x": 15,
+        "y": 12
+      },
+      {
+        "x": 16,
+        "y": 12
+      },
+      {
+        "x": 17,
+        "y": 12
+      },
+      {
+        "x": 18,
+        "y": 12
+      },
+      {
+        "x": 19,
+        "y": 12
+      },
+      {
+        "x": 20,
+        "y": 12
+      },
+      {
+        "x": 13,
+        "y": 12
+      }
+    ],
+    "animated": true,
+    "animationSpeed": 100
+  },
+  {
+    "id": 17,
+    "name": "Ground",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 60,
+        "y": 12
+      },
+      {
+        "x": 61,
+        "y": 12
+      },
+      {
+        "x": 59,
+        "y": 12
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 62,
+      "y": 12
+    }
+  },
+  {
+    "id": 19,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 6,
+      "y": 13
+    }
+  },
+  {
+    "id": 20,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 5,
+      "y": 13
+    }
+  },
+  {
+    "id": 21,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 4,
+      "y": 13
+    }
+  },
+  {
+    "id": 22,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 3,
+      "y": 13
+    }
+  },
+  {
+    "id": 23,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 2,
+      "y": 13
+    }
+  },
+  {
+    "id": 24,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 1,
+      "y": 13
+    }
+  },
+  {
+    "id": 25,
+    "name": "grass border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 0,
+      "y": 13
+    }
+  },
+  {
+    "id": 26,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 8,
+      "y": 14
+    }
+  },
+  {
+    "id": 27,
+    "name": "cobble floor",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 9,
+      "y": 14
+    }
+  },
+  {
+    "id": 28,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 10,
+      "y": 14
+    }
+  },
+  {
+    "id": 29,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 11,
+      "y": 14
+    }
+  },
+  {
+    "id": 30,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 12,
+      "y": 14
+    }
+  },
+  {
+    "id": 31,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 13,
+      "y": 14
+    }
+  },
+  {
+    "id": 32,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 14,
+      "y": 14
+    }
+  },
+  {
+    "id": 33,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 15,
+      "y": 14
+    }
+  },
+  {
+    "id": 34,
+    "name": "cobble border",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 16,
+      "y": 14
+    }
+  },
+  {
+    "id": 35,
+    "name": "water",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 27,
+        "y": 19
+      },
+      {
+        "x": 28,
+        "y": 19
+      },
+      {
+        "x": 29,
+        "y": 19
+      },
+      {
+        "x": 31,
+        "y": 19
+      },
+      {
+        "x": 30,
+        "y": 19
+      },
+      {
+        "x": 32,
+        "y": 19
+      },
+      {
+        "x": 33,
+        "y": 19
+      },
+      {
+        "x": 34,
+        "y": 19
+      },
+      {
+        "x": 35,
+        "y": 19
+      }
+    ],
+    "animated": true,
+    "animationSpeed": 1000
+  },
+  {
+    "id": 36,
+    "name": "water",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 36,
+        "y": 19
+      },
+      {
+        "x": 37,
+        "y": 19
+      },
+      {
+        "x": 38,
+        "y": 19
+      },
+      {
+        "x": 39,
+        "y": 19
+      },
+      {
+        "x": 40,
+        "y": 19
+      },
+      {
+        "x": 41,
+        "y": 19
+      },
+      {
+        "x": 42,
+        "y": 19
+      }
+    ],
+    "animated": true,
+    "animationSpeed": 500
+  },
+  {
+    "id": 37,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 61,
+      "y": 18
+    }
+  },
+  {
+    "id": 38,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 62,
+      "y": 18
+    }
+  },
+  {
+    "id": 39,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 63,
+      "y": 18
+    }
+  },
+  {
+    "id": 40,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 0,
+      "y": 19
+    }
+  },
+  {
+    "id": 41,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 1,
+      "y": 19
+    }
+  },
+  {
+    "id": 42,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 2,
+      "y": 19
+    }
+  },
+  {
+    "id": 43,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 3,
+      "y": 19
+    }
+  },
+  {
+    "id": 44,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 4,
+      "y": 19
+    }
+  },
+  {
+    "id": 45,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 57,
+      "y": 19
+    }
+  },
+  {
+    "id": 46,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 58,
+      "y": 19
+    }
+  },
+  {
+    "id": 47,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 59,
+      "y": 19
+    }
+  },
+  {
+    "id": 48,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 60,
+      "y": 19
+    }
+  },
+  {
+    "id": 49,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 61,
+      "y": 19
+    }
+  },
+  {
+    "id": 50,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 62,
+      "y": 19
+    }
+  },
+  {
+    "id": 51,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 63,
+      "y": 19
+    }
+  },
+  {
+    "id": 52,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 0,
+      "y": 20
+    }
+  },
+  {
+    "id": 53,
+    "name": "Stairs",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 31,
+      "y": 15
+    },
+    "floorChange": 1
+  },
+  {
+    "id": 54,
+    "name": "Stairs",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 15,
+      "y": 15
+    },
+    "floorChange": -1
+  },
+  {
+    "id": 55,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 11,
+      "y": 19
+    }
+  },
+  {
+    "id": 56,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 12,
+      "y": 19
+    }
+  },
+  {
+    "id": 57,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 13,
+      "y": 19
+    }
+  },
+  {
+    "id": 58,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 14,
+      "y": 19
+    }
+  },
+  {
+    "id": 59,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 15,
+      "y": 19
+    }
+  },
+  {
+    "id": 60,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 16,
+      "y": 19
+    }
+  },
+  {
+    "id": 61,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 17,
+      "y": 19
+    }
+  },
+  {
+    "id": 62,
+    "name": "water border",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprite": {
+      "x": 18,
+      "y": 19
+    }
+  },
+  {
+    "id": 63,
+    "name": "water",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 19,
+        "y": 19
+      },
+      {
+        "x": 20,
+        "y": 19
+      },
+      {
+        "x": 21,
+        "y": 19
+      },
+      {
+        "x": 22,
+        "y": 19
+      }
+    ],
+    "animated": true,
+    "animationSpeed": 1000
+  },
+  {
+    "id": 64,
+    "name": "stone wall",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 22,
+        "y": 13
+      },
+      {
+        "x": 23,
+        "y": 13
+      },
+      {
+        "x": 24,
+        "y": 13
+      },
+      {
+        "x": 25,
+        "y": 13
+      },
+      {
+        "x": 26,
+        "y": 13
+      },
+      {
+        "x": 27,
+        "y": 13
+      },
+      {
+        "x": 28,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 65,
+    "name": "dark rock",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 29,
+        "y": 13
+      },
+      {
+        "x": 30,
+        "y": 13
+      },
+      {
+        "x": 31,
+        "y": 13
+      },
+      {
+        "x": 32,
+        "y": 13
+      },
+      {
+        "x": 33,
+        "y": 13
+      },
+      {
+        "x": 34,
+        "y": 13
+      },
+      {
+        "x": 35,
+        "y": 13
+      },
+      {
+        "x": 36,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 66,
+    "name": "earth",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 37,
+        "y": 13
+      },
+      {
+        "x": 38,
+        "y": 13
+      },
+      {
+        "x": 39,
+        "y": 13
+      },
+      {
+        "x": 40,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 67,
+    "name": "gravel",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 41,
+        "y": 13
+      },
+      {
+        "x": 42,
+        "y": 13
+      },
+      {
+        "x": 43,
+        "y": 13
+      },
+      {
+        "x": 44,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 68,
+    "name": "lava rock",
+    "properties": {
+      "walkable": false,
+      "blocking": true,
+      "useable": false,
+      "pickupable": false
+    },
+    "sprites": [
+      {
+        "x": 49,
+        "y": 13
+      },
+      {
+        "x": 50,
+        "y": 13
+      },
+      {
+        "x": 51,
+        "y": 13
+      },
+      {
+        "x": 52,
+        "y": 13
+      }
+    ]
+  },
+  {
+    "id": 69,
+    "name": "noob staff",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": true
+    },
+    "skillType": "magic",
+    "sprite": {
+      "x": 9,
+      "y": 26
+    },
+    "attack": 5,
+    "defense": 5,
+    "weight": 200,
+    "slot": "SLOT_LEFTHAND"
+  },
+  {
+    "id": 70,
+    "name": "noob club",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": true
+    },
+    "skillType": "melee",
+    "sprite": {
+      "x": 48,
+      "y": 27
+    },
+    "attack": 5,
+    "defense": 5,
+    "slot": "SLOT_LEFTHAND"
+  }
+]

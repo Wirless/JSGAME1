@@ -195,8 +195,8 @@ app.post('/api/items', (req, res) => {
 // API endpoint to load items
 app.get('/api/items', (req, res) => {
   try {
-    if (fs.existsSync('items.json')) {
-      const items = JSON.parse(fs.readFileSync('items.json', 'utf8'));
+    if (fs.existsSync('public/items.json')) {
+      const items = JSON.parse(fs.readFileSync('public/items.json', 'utf8'));
       res.json(items);
     } else {
       res.json([]);
@@ -210,7 +210,7 @@ app.get('/api/items', (req, res) => {
 app.post('/api/outfits', (req, res) => {
   try {
     const outfits = req.body;
-    fs.writeFileSync('outfits.json', JSON.stringify(outfits, null, 2));
+    fs.writeFileSync('public/outfits.json', JSON.stringify(outfits, null, 2));
     res.json({ success: true, message: 'Outfits saved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -220,8 +220,8 @@ app.post('/api/outfits', (req, res) => {
 // API endpoint to load outfits
 app.get('/api/outfits', (req, res) => {
   try {
-    if (fs.existsSync('outfits.json')) {
-      const outfits = JSON.parse(fs.readFileSync('outfits.json', 'utf8'));
+    if (fs.existsSync('public/outfits.json')) {
+      const outfits = JSON.parse(fs.readFileSync('public/outfits.json', 'utf8'));
       res.json(outfits);
     } else {
       res.json([]);
@@ -259,8 +259,8 @@ app.get('/api/map', (req, res) => {
 // API endpoint to load map index (world data)
 app.get('/api/mapsindex', (req, res) => {
   try {
-    if (fs.existsSync('mapsindex.json')) {
-      const mapsIndex = JSON.parse(fs.readFileSync('mapsindex.json', 'utf8'));
+    if (fs.existsSync('public/mapsindex.json')) {
+      const mapsIndex = JSON.parse(fs.readFileSync('public/mapsindex.json', 'utf8'));
       res.json(mapsIndex);
     } else {
       res.json({ 
@@ -280,7 +280,7 @@ app.get('/api/mapsindex', (req, res) => {
 app.post('/api/mapsindex', (req, res) => {
   try {
     const mapsIndex = req.body;
-    fs.writeFileSync('mapsindex.json', JSON.stringify(mapsIndex, null, 2));
+    fs.writeFileSync('public/mapsindex.json', JSON.stringify(mapsIndex, null, 2));
     res.json({ success: true, message: 'World data saved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -288,7 +288,7 @@ app.post('/api/mapsindex', (req, res) => {
 });
 
 // API endpoint to load specific map sector
-app.get('/api/sector/:filename', (req, res) => {
+app.get('/api/sector/:filename(*)', (req, res) => {
   try {
     const filename = req.params.filename;
     
@@ -297,14 +297,14 @@ app.get('/api/sector/:filename', (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid sector filename' });
     }
     
-    // Create full path for the file
-    const filePath = path.join(__dirname, filename);
+    // Create full path for the file, looking in public folder
+    const filePath = path.join(__dirname, 'public', filename);
     
     if (fs.existsSync(filePath)) {
       const sector = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       res.json(sector);
     } else {
-      res.status(404).json({ success: false, message: 'Sector not found' });
+      res.status(404).json({ success: false, message: `Sector not found: ${filePath}` });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -312,7 +312,7 @@ app.get('/api/sector/:filename', (req, res) => {
 });
 
 // API endpoint to save specific map sector
-app.post('/api/sector/:filename', (req, res) => {
+app.post('/api/sector/:filename(*)', (req, res) => {
   try {
     const filename = req.params.filename;
     const sectorData = req.body;
@@ -322,8 +322,8 @@ app.post('/api/sector/:filename', (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid sector filename' });
     }
     
-    // Create full path for the file
-    const filePath = path.join(__dirname, filename);
+    // Create full path for the file, looking in public folder
+    const filePath = path.join(__dirname, 'public', filename);
     
     // Ensure directory exists
     const dir = path.dirname(filePath);
