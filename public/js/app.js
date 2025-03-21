@@ -70,8 +70,8 @@ const quickVariantsContainer = document.getElementById('quickVariantsContainer')
 const itemEditorTab = document.getElementById('itemEditorTab');
 const mapEditorTab = document.getElementById('mapEditorTab');
 const outfitEditorTab = document.getElementById('outfitEditorTab');
-const worldEditorTab = document.getElementById('worldEditorTab');
 const gameClientTab = document.getElementById('gameClientTab');
+const logoutBtn = document.getElementById('logoutBtn');
 const itemEditorSection = document.getElementById('itemEditorSection');
 const mapEditorSection = document.getElementById('mapEditorSection');
 const outfitEditorSection = document.getElementById('outfitEditorSection');
@@ -322,8 +322,8 @@ function init() {
   itemEditorTab.addEventListener('click', () => switchTab('item'));
   mapEditorTab.addEventListener('click', () => switchTab('map'));
   outfitEditorTab.addEventListener('click', () => switchTab('outfit'));
-  worldEditorTab.addEventListener('click', () => switchTab('world'));
   gameClientTab.addEventListener('click', () => switchTab('game'));
+  logoutBtn.addEventListener('click', logout);
   
   // Map dimension inputs
   mapWidthInput.addEventListener('change', validateMapDimensions);
@@ -943,11 +943,10 @@ function switchTab(tab) {
   mapEditorSection.classList.remove('active');
   outfitEditorSection.classList.remove('active');
   
-  // Reset active class on tabs
+  // Remove active class from tabs
   itemEditorTab.classList.remove('active');
   mapEditorTab.classList.remove('active');
   outfitEditorTab.classList.remove('active');
-  worldEditorTab.classList.remove('active');
   gameClientTab.classList.remove('active');
   
   // Show selected section and set active class on tab
@@ -960,9 +959,6 @@ function switchTab(tab) {
   } else if (tab === 'outfit') {
     outfitEditorSection.classList.add('active');
     outfitEditorTab.classList.add('active');
-  } else if (tab === 'world') {
-    // Redirect to world editor page
-    window.location.href = '/world-editor';
   } else if (tab === 'game') {
     // Redirect to game client
     window.location.href = '/game';

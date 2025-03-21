@@ -36,10 +36,6 @@ app.get('/editor', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/world-editor', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'world-editor.html'));
-});
-
 // Default route sends to login
 app.get('/', (req, res) => {
   res.redirect('/login');
@@ -294,12 +290,15 @@ app.post('/api/mapsindex', (req, res) => {
 // API endpoint to load specific map sector
 app.get('/api/sector/:filename', (req, res) => {
   try {
-    const filePath = req.params.filename;
+    const filename = req.params.filename;
     
     // Security check to prevent directory traversal
-    if (filePath.includes('..') || !filePath.endsWith('.json')) {
+    if (filename.includes('..')) {
       return res.status(400).json({ success: false, message: 'Invalid sector filename' });
     }
+    
+    // Create full path for the file
+    const filePath = path.join(__dirname, filename);
     
     if (fs.existsSync(filePath)) {
       const sector = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -315,13 +314,16 @@ app.get('/api/sector/:filename', (req, res) => {
 // API endpoint to save specific map sector
 app.post('/api/sector/:filename', (req, res) => {
   try {
-    const filePath = req.params.filename;
+    const filename = req.params.filename;
     const sectorData = req.body;
     
     // Security check to prevent directory traversal
-    if (filePath.includes('..') || !filePath.endsWith('.json')) {
+    if (filename.includes('..')) {
       return res.status(400).json({ success: false, message: 'Invalid sector filename' });
     }
+    
+    // Create full path for the file
+    const filePath = path.join(__dirname, filename);
     
     // Ensure directory exists
     const dir = path.dirname(filePath);

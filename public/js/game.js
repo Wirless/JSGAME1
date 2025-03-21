@@ -141,6 +141,7 @@ async function loadSector(filename) {
   
   // Load sector from server
   try {
+    // Extract just the filename without the path for the API request
     const response = await fetch(`/api/sector/${filename}`);
     if (!response.ok) {
       throw new Error(`Failed to load sector: ${response.status} ${response.statusText}`);
