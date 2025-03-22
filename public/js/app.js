@@ -1148,10 +1148,7 @@ function drawMap() {
     cancelAnimationFrame(lastAnimationFrame);
   }
   
-  // Use throttling for better performance when making rapid changes
-  if (throttledDraw) return;
-  
-  throttledDraw = true;
+  // Create a new animation frame immediately - don't use throttling for direct updates
   lastAnimationFrame = requestAnimationFrame(() => {
     // Set canvas size based on map dimensions
     const tileSize = 32; // Size to draw each tile
@@ -1253,15 +1250,18 @@ function drawMap() {
       );
     }
     
-    // Request animation frame for animated items
+    // Request animation frame for animated items if needed
     if (items.some(item => item.animated)) {
-      lastAnimationFrame = requestAnimationFrame(drawMap);
+      setTimeout(() => {
+        lastAnimationFrame = requestAnimationFrame(drawMap);
+      }, 100); // 10 FPS for animations to save resources
+    } else {
+      // Reset animation frame reference when not needed
+      lastAnimationFrame = null;
     }
     
-    // Reset throttle after drawing
-    setTimeout(() => {
-      throttledDraw = false;
-    }, 50); // Throttle to max 20 FPS for better performance
+    // Reset throttle immediately
+    throttledDraw = false;
   });
 }
 
@@ -1381,14 +1381,16 @@ function handleMapMouseMove(event) {
     document.getElementById('mapCoordinates').textContent = `X: ${tileX}, Y: ${tileY}`;
   }
   
-  // If we are drawing (mouse down) and have moved to a new tile
-  if (isDrawing && (tileX !== lastDrawnTileX || tileY !== lastDrawnTileY) && !fillMode) {
-    // Make sure we're within bounds
-    if (tileX >= 0 && tileX < mapData.width && tileY >= 0 && tileY < mapData.height) {
-      // Update selected tile
-      selectedTileX = tileX;
-      selectedTileY = tileY;
-      
+  // Always update the selected tile position for highlighting
+  if (tileX >= 0 && tileX < mapData.width && tileY >= 0 && tileY < mapData.height) {
+    selectedTileX = tileX;
+    selectedTileY = tileY;
+    
+    // Even if not drawing, redraw to update the highlight
+    safeDrawMap();
+    
+    // If we are drawing (mouse down) and have moved to a new tile
+    if (isDrawing && (tileX !== lastDrawnTileX || tileY !== lastDrawnTileY) && !fillMode) {
       // If we are in erase mode, remove item
       if (eraseMode) {
         removeItemAtTile(tileX, tileY, currentLayer);
@@ -1401,9 +1403,6 @@ function handleMapMouseMove(event) {
       // Update the last drawn position
       lastDrawnTileX = tileX;
       lastDrawnTileY = tileY;
-      
-      // Redraw the map
-      drawMap();
     }
   }
 }
@@ -1496,6 +1495,9 @@ function addItemToTile(x, y, layer, itemId) {
     y: y,
     itemId: itemId
   });
+  
+  // Redraw the map to reflect changes immediately
+  safeDrawMap();
   
   // Save the map
   saveMap();
@@ -1639,6 +1641,8 @@ function saveMap() {
   .then(response => response.json())
   .then(data => {
     console.log('Map saved:', data);
+    // Ensure the map is redrawn after saving
+    safeDrawMap();
   })
   .catch(error => {
     console.error('Error saving map:', error);
@@ -1769,6 +1773,9 @@ function removeItemAtTile(x, y, layer) {
   mapData.layers[layer] = mapData.layers[layer].filter(tile => 
     !(tile.x === x && tile.y === y)
   );
+  
+  // Redraw the map to reflect changes immediately
+  safeDrawMap();
   
   // Save the map
   saveMap();
@@ -3440,6 +3447,16 @@ function toggleFillMode() {
     }
   } else {
     mapCanvas.classList.remove('fill-mode');
+  }
+}
+
+// Add a utility function to safely redraw the map
+function safeDrawMap() {
+  // Only try to draw if the mapCanvas and mapCtx exist
+  if (mapCanvas && mapCtx) {
+    drawMap();
+  } else {
+    console.error('Map canvas or context not available');
   }
 }
 
