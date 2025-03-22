@@ -374,13 +374,12 @@ select {
 
 .map-canvas-container {
   flex: 1;
-  min-width: 400px;
-  background-color: #fff;
+  background-color: #f5f5f5;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 15px;
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  min-width: 800px;
 }
 
 .map-canvas-wrapper {
@@ -587,12 +586,13 @@ select {
     flex-direction: column;
   }
   
-  .item-palette, .tile-info {
+  .tile-info {
     width: 100%;
   }
   
   .map-canvas-container {
     order: -1;
+    min-width: 100%;
   }
 }
 

@@ -13,6 +13,7 @@ let multiSelectMode = false; // Flag for multi-select mode
 
 // Animation Variables
 let animationIntervals = {}; // Store animation interval IDs
+let animationsEnabled = true; // Flag to toggle animations on/off
 
 // Outfit Editor Variables
 let outfits = [];
@@ -43,6 +44,7 @@ let selectedTileItemIndex = -1;
 let selectedItemId = null; // Currently selected item ID for map editing
 let eraseMode = false; // Flag for erase mode
 let isDrawing = false; // Flag for drag drawing
+let isErasing = false; // Flag for drag erasing with right mouse button
 let lastDrawnTileX = -1; // Last drawn tile X position
 let lastDrawnTileY = -1; // Last drawn tile Y position
 let fillMode = false; // Add fill mode flag
@@ -51,6 +53,7 @@ let lastAnimationFrame = null; // For optimization
 let throttledDraw = false; // For performance optimization
 let movementSpeed = 5; // Default movement speed
 let fillEntireMapMode = false; // Flag for fill entire map mode
+let clearLowerLayersOnDraw = false; // Flag to clear lower layers when drawing
 
 // DOM Elements - Item Editor
 const spriteSheetCanvas = document.getElementById('spriteSheetCanvas');
@@ -970,8 +973,16 @@ function switchTab(tab) {
   }
 }
 
-// Render the item palette for the map editor
+// Render item palette for quick selection
 function renderItemPalette() {
+  const itemPalette = document.getElementById('itemPalette');
+  if (!itemPalette) return;
+  
+  // Palette has been removed from the UI, so we don't need to do anything
+  if (window.location.hash === '#mapEditor' || document.getElementById('mapEditorTab').classList.contains('active')) {
+    return;
+  }
+  
   itemPalette.innerHTML = '';
   
   if (items.length === 0) {
@@ -979,18 +990,51 @@ function renderItemPalette() {
     return;
   }
   
+  // Group items by category
+  const categories = {
+    ground: ['grass', 'sand', 'water', 'floor', 'gravel', 'earth', 'ground', 'cobble', 'dirt'],
+    wall: ['wall', 'rock', 'stone', 'brick'],
+    decoration: ['torch', 'fire', 'statue', 'furniture', 'light'],
+    item: ['sword', 'staff', 'club', 'armor', 'shield', 'helm', 'boot', 'ring', 'amulet', 'belt']
+  };
+  
+  // Helper function to determine item category
+  function getItemCategory(item) {
+    const nameLower = item.name.toLowerCase();
+    
+    for (const [category, keywords] of Object.entries(categories)) {
+      if (keywords.some(keyword => nameLower.includes(keyword))) {
+        return category;
+      }
+    }
+    
+    // Check based on properties
+    if (item.properties) {
+      if (item.properties.pickupable) return 'item';
+      if (item.properties.blocking) return 'wall';
+      if (item.properties.walkable) return 'ground';
+    }
+    
+    return 'decoration';
+  }
+  
   items.forEach(item => {
     const paletteItem = document.createElement('div');
     paletteItem.className = 'palette-item';
     paletteItem.dataset.itemId = item.id;
+    paletteItem.dataset.category = getItemCategory(item);
     
     if (selectedItemId === item.id) {
       paletteItem.classList.add('selected');
     }
     
+    // Create content wrapper for better styling
+    const itemContent = document.createElement('div');
+    itemContent.className = 'item-content';
+    
     const itemCanvas = document.createElement('canvas');
-    itemCanvas.width = 64;
-    itemCanvas.height = 64;
+    itemCanvas.width = 32;
+    itemCanvas.height = 32;
     const itemCtx = itemCanvas.getContext('2d');
     
     // Draw the sprite
@@ -1004,7 +1048,7 @@ function renderItemPalette() {
         SPRITE_SIZE,
         SPRITE_SIZE,
         0, 0,
-        64, 64
+        32, 32
       );
     } else if (item.sprite) {
       // Draw the single sprite
@@ -1015,22 +1059,19 @@ function renderItemPalette() {
         SPRITE_SIZE,
         SPRITE_SIZE,
         0, 0,
-        64, 64
+        32, 32
       );
     }
     
-    paletteItem.appendChild(itemCanvas);
+    itemContent.appendChild(itemCanvas);
     
     // Add a small label with item name
     const label = document.createElement('div');
-    label.style.fontSize = '9px';
-    label.style.textAlign = 'center';
-    label.style.overflow = 'hidden';
-    label.style.textOverflow = 'ellipsis';
-    label.style.whiteSpace = 'nowrap';
+    label.className = 'item-name';
     label.textContent = item.name;
     
-    paletteItem.appendChild(label);
+    itemContent.appendChild(label);
+    paletteItem.appendChild(itemContent);
     
     // Event listener for selecting an item
     paletteItem.addEventListener('click', () => {
@@ -1202,7 +1243,7 @@ function drawMap() {
         let spriteX, spriteY;
         
         if (item.sprites && item.sprites.length > 0) {
-          if (item.animated) {
+          if (item.animated && animationsEnabled) {
             // For animated items, we need a different approach 
             // We'll use a hash of the tile coords + time to show different frames at different times
             const frameIndex = Math.floor(Date.now() / (item.animationSpeed || 500)) % item.sprites.length;
@@ -1251,9 +1292,9 @@ function drawMap() {
     }
     
     // Request animation frame for animated items if needed
-    if (items.some(item => item.animated)) {
+    if (animationsEnabled && items.some(item => item.animated)) {
       setTimeout(() => {
-        lastAnimationFrame = requestAnimationFrame(drawMap);
+      lastAnimationFrame = requestAnimationFrame(drawMap);
       }, 100); // 10 FPS for animations to save resources
     } else {
       // Reset animation frame reference when not needed
@@ -1261,7 +1302,7 @@ function drawMap() {
     }
     
     // Reset throttle immediately
-    throttledDraw = false;
+      throttledDraw = false;
   });
 }
 
@@ -1382,14 +1423,14 @@ function handleMapMouseMove(event) {
   }
   
   // Always update the selected tile position for highlighting
-  if (tileX >= 0 && tileX < mapData.width && tileY >= 0 && tileY < mapData.height) {
-    selectedTileX = tileX;
-    selectedTileY = tileY;
-    
+    if (tileX >= 0 && tileX < mapData.width && tileY >= 0 && tileY < mapData.height) {
+      selectedTileX = tileX;
+      selectedTileY = tileY;
+      
     // Even if not drawing, redraw to update the highlight
     safeDrawMap();
     
-    // If we are drawing (mouse down) and have moved to a new tile
+    // Handle continuous drawing
     if (isDrawing && (tileX !== lastDrawnTileX || tileY !== lastDrawnTileY) && !fillMode) {
       // If we are in erase mode, remove item
       if (eraseMode) {
@@ -1397,8 +1438,23 @@ function handleMapMouseMove(event) {
       } 
       // If we have a selected item, add it to the map
       else if (selectedItemId !== null) {
+        if (clearLowerLayersOnDraw) {
+          // Clear all items on this tile on lower layers
+          for (let layer = 0; layer <= currentLayer; layer++) {
+            removeItemAtTile(tileX, tileY, layer);
+          }
+        }
         addItemToTile(tileX, tileY, currentLayer, selectedItemId);
       }
+      
+      // Update the last drawn position
+      lastDrawnTileX = tileX;
+      lastDrawnTileY = tileY;
+    }
+    
+    // Handle continuous erasing with right mouse button
+    if (isErasing && (tileX !== lastDrawnTileX || tileY !== lastDrawnTileY)) {
+      removeItemAtTile(tileX, tileY, currentLayer);
       
       // Update the last drawn position
       lastDrawnTileX = tileX;
@@ -1461,8 +1517,10 @@ function handleMapMouseDown(event) {
 // Handle mouse up on the map (stop drawing)
 function handleMapMouseUp(event) {
   isDrawing = false;
+  isErasing = false;
   lastDrawnTileX = -1;
   lastDrawnTileY = -1;
+  document.removeEventListener('mouseup', stopErasing);
 }
 
 // Replace the old handleMapClick function
@@ -1728,8 +1786,8 @@ function handleMapRightClick(event) {
   const y = event.clientY - rect.top;
   
   const tileSize = 32;
-  const tileX = Math.floor(x / tileSize);
-  const tileY = Math.floor(y / tileSize);
+  const tileX = Math.floor(x / tileSize / mapZoom);
+  const tileY = Math.floor(y / tileSize / mapZoom);
   
   // Make sure the click is within the map bounds
   if (tileX < 0 || tileX >= mapData.width || tileY < 0 || tileY >= mapData.height) {
@@ -1749,8 +1807,21 @@ function handleMapRightClick(event) {
   // Display items on this tile
   displayTileItems(selectedTileX, selectedTileY);
   
-  // Redraw the map
-  drawMap();
+  // Start drag erasing
+  isErasing = true;
+  lastDrawnTileX = tileX;
+  lastDrawnTileY = tileY;
+  
+  // Add mouse up listener to stop erasing
+  document.addEventListener('mouseup', stopErasing);
+}
+
+// Function to stop erasing
+function stopErasing() {
+  isErasing = false;
+  lastDrawnTileX = -1;
+  lastDrawnTileY = -1;
+  document.removeEventListener('mouseup', stopErasing);
 }
 
 // Remove an item at a specific tile and layer
@@ -2218,7 +2289,7 @@ function drawOutfitPreview() {
   
   // Draw the remaining addons if it's addon or both, or if there's no selection yet
   if (outfitType !== 'full' || currentOutfitIndex < 0) {
-    // Draw each addon on top of the base, except wings which are already drawn
+    // Draw each addon on top of the base, except wings which are already drawn behind the outfit
     Object.entries(outfitAddons).forEach(([type, addon]) => {
       // Skip wings as they were already drawn behind the outfit
       if (addon && type !== 'wings') {
@@ -2722,49 +2793,117 @@ function fillMapArea(x, y, itemId) {
 function initializeMapEditorExtras() {
   // Create and add fill mode toggle button
   const fillModeToggle = document.createElement('div');
-  fillModeToggle.className = 'fill-mode-toggle control-group';
+  fillModeToggle.className = 'fill-mode-toggle map-control';
   fillModeToggle.innerHTML = `
-    <div>
+    <label>
       <input type="checkbox" id="fillMode">
-      <label for="fillMode">Fill Connected Tiles</label>
-    </div>
-    <div style="margin-top: 5px;">
-      <input type="checkbox" id="fillEntireMapMode">
-      <label for="fillEntireMapMode">Fill Entire Map Mode</label>
-    </div>
-    <div style="display: flex; margin-top: 5px;">
-      <button id="fillEntireMapBtn" class="fill-button">Fill Entire Map</button>
-      <button id="fillMapWithBoundariesBtn" class="fill-button">Fill With Boundaries</button>
-    </div>
+      Fill Mode
+    </label>
   `;
   
-  // Create and add resize controls
-  const resizeControls = document.createElement('div');
-  resizeControls.className = 'resize-controls control-group';
-  resizeControls.innerHTML = `
-    <div class="resize-buttons">
-      <button id="enlargeMapEditor">Enlarge Editor (1.5x)</button>
-      <button id="largeMapEditor">Large Editor (2x)</button>
-      <button id="fullscreenMapEditor">Fullscreen</button>
-      <button id="resetMapEditorSize">Reset Size</button>
-    </div>
-    <div class="custom-size" style="margin-top: 8px;">
-      <label>Custom Size: </label>
-      <input type="number" id="customMapWidth" placeholder="Width" min="400" max="2000" style="width: 60px;">
-      <span>×</span>
-      <input type="number" id="customMapHeight" placeholder="Height" min="300" max="1200" style="width: 60px;">
-      <button id="applyCustomSize">Apply</button>
-    </div>
+  // Create and add map editor controls container
+  const mapControls = document.createElement('div');
+  mapControls.className = 'map-controls';
+  
+  // Create buttons and controls
+  const fillEntireMapBtn = document.createElement('button');
+  fillEntireMapBtn.id = 'fillEntireMap';
+  fillEntireMapBtn.className = 'btn btn-sm btn-outline-secondary map-control';
+  fillEntireMapBtn.textContent = 'Fill Entire Map';
+  
+  const fillMapWithBoundariesBtn = document.createElement('button');
+  fillMapWithBoundariesBtn.id = 'fillMapWithBoundaries';
+  fillMapWithBoundariesBtn.className = 'btn btn-sm btn-outline-secondary map-control';
+  fillMapWithBoundariesBtn.textContent = 'Fill Open Areas';
+  
+  const resetSelectedBtn = document.createElement('button');
+  resetSelectedBtn.id = 'resetSelected';
+  resetSelectedBtn.className = 'btn btn-sm btn-outline-secondary map-control';
+  resetSelectedBtn.textContent = 'Reset Selected';
+  
+  // Create animation toggle
+  const animationToggle = document.createElement('div');
+  animationToggle.className = 'animation-toggle map-control';
+  animationToggle.innerHTML = `
+    <label>
+      <input type="checkbox" id="animationsEnabled" checked>
+      Enable Animations
+    </label>
   `;
+  
+  // Create clear lower layers toggle
+  const clearLayersToggle = document.createElement('div');
+  clearLayersToggle.className = 'clear-layers-toggle map-control';
+  clearLayersToggle.innerHTML = `
+    <label>
+      <input type="checkbox" id="clearLowerLayers">
+      Clear Lower Layers
+    </label>
+  `;
+  
+  // Add the controls to the container
+  mapControls.appendChild(fillModeToggle);
+  mapControls.appendChild(fillEntireMapBtn);
+  mapControls.appendChild(fillMapWithBoundariesBtn);
+  mapControls.appendChild(resetSelectedBtn);
+  mapControls.appendChild(animationToggle);
+  mapControls.appendChild(clearLayersToggle);
   
   // Create movement speed control
   const movementSpeedControl = document.createElement('div');
-  movementSpeedControl.className = 'speed-control control-group';
+  movementSpeedControl.className = 'movement-speed-control map-control';
   movementSpeedControl.innerHTML = `
     <label for="movementSpeed">Movement Speed: </label>
     <input type="range" id="movementSpeed" min="1" max="10" value="5" style="vertical-align: middle;">
     <span id="movementSpeedValue">5</span>
   `;
+  
+  // Create and add map scroll/movement info
+  const mapScrollInfo = document.createElement('div');
+  mapScrollInfo.className = 'map-scroll-info';
+  mapScrollInfo.innerHTML = `
+    <div id="mapCoordinates">X: 0, Y: 0</div>
+    <div>Selected Item: <span id="selectedItemDisplay">None</span></div>
+    <div>Layer: <span id="selectedTileLayer">0</span></div>
+  `;
+  
+  // Create and add resize controls
+  const resizeControls = document.createElement('div');
+  resizeControls.className = 'resize-controls map-control';
+  resizeControls.innerHTML = `
+    <button id="enlargeMapEditor" class="btn btn-sm btn-outline-secondary">1.5x</button>
+    <button id="largeMapEditor" class="btn btn-sm btn-outline-secondary">2x</button>
+    <button id="fullscreenMapEditor" class="btn btn-sm btn-outline-secondary">Full</button>
+    <button id="resetMapEditorSize" class="btn btn-sm btn-outline-secondary">Reset</button>
+  `;
+  
+  // Create and add custom size inputs
+  const customSizeControls = document.createElement('div');
+  customSizeControls.className = 'custom-size-controls map-control';
+  customSizeControls.innerHTML = `
+    <input type="number" id="customMapWidth" placeholder="Width" min="400" value="800">
+    <input type="number" id="customMapHeight" placeholder="Height" min="300" value="600">
+    <button id="applyCustomSize" class="btn btn-sm btn-outline-secondary">Set Size</button>
+  `;
+  
+  // Add FPS counter
+  const fpsCounter = document.createElement('div');
+  fpsCounter.id = 'fpsCounter';
+  fpsCounter.className = 'fps-counter';
+  fpsCounter.textContent = 'FPS: 0';
+  
+  // Find a good place to add these elements
+  const mapEditorContainer = document.querySelector('.map-editor-container');
+  
+  if (mapEditorContainer) {
+    // Add the controls
+    mapEditorContainer.appendChild(mapControls);
+    mapEditorContainer.appendChild(movementSpeedControl);
+    mapEditorContainer.appendChild(mapScrollInfo);
+    mapEditorContainer.appendChild(resizeControls);
+    mapEditorContainer.appendChild(customSizeControls);
+    mapEditorContainer.appendChild(fpsCounter);
+  }
   
   // Create an improved items panel
   const itemsPanel = document.createElement('div');
@@ -2773,7 +2912,11 @@ function initializeMapEditorExtras() {
   itemsPanel.innerHTML = `
     <div class="items-header">
       <h3>Items</h3>
+      <div class="view-controls">
+        <button id="gridViewBtn" class="view-btn active" title="Grid View">□□□</button>
+        <button id="listViewBtn" class="view-btn" title="List View">≡</button>
       <button id="toggleItemsPanel">▢</button>
+      </div>
     </div>
     <div class="items-search">
       <input type="text" id="itemSearch" placeholder="Search items...">
@@ -2786,64 +2929,56 @@ function initializeMapEditorExtras() {
       </div>
     </div>
     <div id="itemPaletteContainer" class="items-list-container">
-      <div id="itemPalette" class="items-list"></div>
+      <div id="itemPalette" class="items-list grid-view"></div>
     </div>
   `;
-  
-  // Find parent elements to attach to
-  const eraseModeToggle = document.querySelector('.erase-mode-toggle');
-  const mapScrollInfo = document.querySelector('.map-scroll-info');
-  const mapEditorContainer = document.querySelector('.map-editor-container');
   
   // Add the items panel to the map editor container
   if (mapEditorContainer) {
     mapEditorContainer.prepend(itemsPanel);
   }
   
-  if (eraseModeToggle) {
-    eraseModeToggle.after(fillModeToggle);
-  } else {
-    // If erase mode toggle doesn't exist, create and add it to map controls
-    const mapControls = document.querySelector('.map-controls');
-    if (mapControls) {
-      const eraseModeToggle = document.createElement('div');
-      eraseModeToggle.className = 'erase-mode-toggle control-group';
-      eraseModeToggle.innerHTML = `
-        <input type="checkbox" id="eraseMode">
-        <label for="eraseMode">Erase Mode</label>
-      `;
-      mapControls.appendChild(eraseModeToggle);
-      mapControls.appendChild(fillModeToggle);
-    }
-  }
-  
-  // Add performance info display
-  const performanceInfo = document.createElement('div');
-  performanceInfo.className = 'performance-info';
-  performanceInfo.innerHTML = `<span id="fpsCounter">FPS: --</span>`;
-  
-  // Add resize controls and speed control
-  if (mapScrollInfo) {
-    mapScrollInfo.after(movementSpeedControl);
-    movementSpeedControl.after(resizeControls);
-    resizeControls.after(performanceInfo);
-  }
-  
-  // Add event listeners to new controls
+  // Set up event listeners
   const fillModeCheckbox = document.getElementById('fillMode');
   if (fillModeCheckbox) {
     fillModeCheckbox.addEventListener('change', toggleFillMode);
   }
   
-  const fillEntireMapModeCheckbox = document.getElementById('fillEntireMapMode');
-  if (fillEntireMapModeCheckbox) {
-    fillEntireMapModeCheckbox.addEventListener('change', () => {
-      fillEntireMapMode = fillEntireMapModeCheckbox.checked;
+  // Add event listeners for the new controls
+  const animationsEnabledCheckbox = document.getElementById('animationsEnabled');
+  if (animationsEnabledCheckbox) {
+    animationsEnabledCheckbox.addEventListener('change', function() {
+      animationsEnabled = this.checked;
+      safeDrawMap(); // Redraw the map with new animation setting
     });
   }
   
-  // Fill map buttons
-  const fillEntireMapBtn = document.getElementById('fillEntireMapBtn');
+  const clearLowerLayersCheckbox = document.getElementById('clearLowerLayers');
+  if (clearLowerLayersCheckbox) {
+    clearLowerLayersCheckbox.addEventListener('change', function() {
+      clearLowerLayersOnDraw = this.checked;
+    });
+  }
+  
+  const resetSelectedButton = document.getElementById('resetSelected');
+  if (resetSelectedButton) {
+    resetSelectedButton.addEventListener('click', function() {
+      // Deselect the current item
+      selectedItemId = null;
+      
+      // Remove selected class from all palette items
+      document.querySelectorAll('.palette-item.selected').forEach(el => {
+        el.classList.remove('selected');
+      });
+      
+      // Update display
+      const selectedItemDisplay = document.getElementById('selectedItemDisplay');
+      if (selectedItemDisplay) {
+        selectedItemDisplay.textContent = 'None';
+      }
+    });
+  }
+  
   if (fillEntireMapBtn) {
     fillEntireMapBtn.addEventListener('click', () => {
       if (selectedItemId) {
@@ -2854,7 +2989,6 @@ function initializeMapEditorExtras() {
     });
   }
   
-  const fillMapWithBoundariesBtn = document.getElementById('fillMapWithBoundariesBtn');
   if (fillMapWithBoundariesBtn) {
     fillMapWithBoundariesBtn.addEventListener('click', () => {
       if (selectedItemId) {
@@ -2906,139 +3040,109 @@ function initializeMapEditorExtras() {
     });
   }
   
-  // Movement speed control
-  const movementSpeedInput = document.getElementById('movementSpeed');
-  const movementSpeedValue = document.getElementById('movementSpeedValue');
-  
-  if (movementSpeedInput) {
-    movementSpeedInput.addEventListener('input', () => {
-      movementSpeed = parseInt(movementSpeedInput.value);
-      movementSpeedValue.textContent = movementSpeed;
-      
-      // Save movement speed to localStorage for the game to use
-      localStorage.setItem('movementSpeed', movementSpeed);
-    });
-  }
-  
-  // Setup item search and filtering
-  const itemSearch = document.getElementById('itemSearch');
-  if (itemSearch) {
-    itemSearch.addEventListener('input', filterItems);
-  }
-  
-  // Set up category buttons
-  const categoryButtons = document.querySelectorAll('.category-btn');
-  categoryButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      // Remove active class from all buttons
-      categoryButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add active class to clicked button
-      button.classList.add('active');
-      
-      // Filter items based on category
-      filterItems();
-    });
-  });
-  
-  // Add toggle for items panel
+  // Set up items panel toggle
   const toggleItemsPanelBtn = document.getElementById('toggleItemsPanel');
   if (toggleItemsPanelBtn) {
     toggleItemsPanelBtn.addEventListener('click', toggleItemsPanel);
   }
   
-  // Setup FPS counter
+  // Set up item search
+  const itemSearch = document.getElementById('itemSearch');
+  if (itemSearch) {
+    itemSearch.addEventListener('input', filterItems);
+  }
+  
+  // Set up item category buttons
+  const categoryButtons = document.querySelectorAll('.category-btn');
+  categoryButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      categoryButtons.forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      renderItemPalette();
+    });
+  });
+  
+  // Movement speed control
+  const movementSpeedInput = document.getElementById('movementSpeed');
+  const movementSpeedValue = document.getElementById('movementSpeedValue');
+  
+  if (movementSpeedInput && movementSpeedValue) {
+    movementSpeedInput.addEventListener('input', () => {
+      const value = movementSpeedInput.value;
+      movementSpeed = parseInt(value);
+      movementSpeedValue.textContent = value;
+    });
+  }
+  
+  // Set up FPS counter
   setupFPSCounter();
   
-  // Add CSS for new elements
+  // Apply the improved layout to the map editor
+  setupImprovedLayout();
+  
+  // Set up event listeners for view toggle buttons
+  const gridViewBtn = document.getElementById('gridViewBtn');
+  const listViewBtn = document.getElementById('listViewBtn');
+  const itemPalette = document.getElementById('itemPalette');
+  
+  if (gridViewBtn && listViewBtn && itemPalette) {
+    gridViewBtn.addEventListener('click', () => {
+      gridViewBtn.classList.add('active');
+      listViewBtn.classList.remove('active');
+      itemPalette.classList.remove('list-view');
+      itemPalette.classList.add('grid-view');
+      renderItemPalette();
+    });
+    
+    listViewBtn.addEventListener('click', () => {
+      listViewBtn.classList.add('active');
+      gridViewBtn.classList.remove('active');
+      itemPalette.classList.remove('grid-view');
+      itemPalette.classList.add('list-view');
+      renderItemPalette();
+    });
+  }
+}
+
+// Function to toggle items panel
+function toggleItemsPanel() {
+  const itemsPanel = document.getElementById('itemsPanel');
+  itemsPanelVisible = !itemsPanelVisible;
+  
+  if (itemsPanel) {
+    if (itemsPanelVisible) {
+      itemsPanel.classList.remove('collapsed');
+      document.getElementById('toggleItemsPanel').textContent = "▢";
+    } else {
+      itemsPanel.classList.add('collapsed');
+      document.getElementById('toggleItemsPanel').textContent = "☰";
+    }
+    
+    // Trigger resize to adjust map area
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+  }
+}
+
+// Filter items by search term and category
+function filterItems() {
+  // This is now handled directly in renderItemPalette
+  renderItemPalette();
+}
+
+// Setup improved layout
+function setupImprovedLayout() {
+  // Reorganize the map editor container
+  const mapEditorContainer = document.querySelector('.map-editor-container');
+  if (!mapEditorContainer) return;
+  
+  // Add CSS to position the items panel on the left and the map content on the right
   const style = document.createElement('style');
   style.textContent = `
-    .control-group {
-      margin: 15px 0;
-      padding: 10px;
-      background: #f5f5f5;
-      border-radius: 5px;
-      border: 1px solid #ddd;
-    }
-    
-    .fill-mode-toggle {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .fill-button {
-      padding: 4px 8px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-right: 5px;
-      font-size: 0.85em;
-    }
-    
-    .fill-button:hover {
-      background: #3e8e41;
-    }
-    
-    .resize-controls {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .resize-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    
-    .resize-controls button, .custom-size button {
-      padding: 5px 10px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9em;
-    }
-    
-    .resize-controls button:hover, .custom-size button:hover {
-      background: #3e8e41;
-    }
-    
-    .map-canvas-container {
-      transition: width 0.3s, height 0.3s;
-      overflow: auto;
-      border: 1px solid #ccc;
-      background: #f9f9f9;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    canvas#mapCanvas {
-      transition: transform 0.3s;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-    }
-    
-    .fill-mode {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23000000" d="M19.5,3.09L15,7.59V4H13V11H20V9H16.41L20.91,4.5L19.5,3.09M4,13V15H7.59L3.09,19.5L4.5,20.91L9,16.41V20H11V13H4Z"/></svg>'), auto;
-    }
-    
-    .speed-control {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .performance-info {
-      margin: 10px 0;
-      font-size: 0.9em;
-      color: #666;
-    }
-    
-    /* Improved layout styles */
     .map-editor-container {
       display: flex;
+      flex-direction: row;
       height: 100%;
       min-height: 600px;
       position: relative;
@@ -3053,6 +3157,7 @@ function initializeMapEditorExtras() {
       display: flex;
       flex-direction: column;
       transition: width 0.3s ease;
+      flex-shrink: 0;
     }
     
     .items-panel.collapsed {
@@ -3066,6 +3171,24 @@ function initializeMapEditorExtras() {
       padding: 10px;
       background: #4CAF50;
       color: white;
+    }
+    
+    .view-controls {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .view-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    
+    .view-btn.active {
+      background: rgba(255,255,255,0.2);
     }
     
     .items-header h3 {
@@ -3122,8 +3245,18 @@ function initializeMapEditorExtras() {
     }
     
     .items-list {
+      height: 100%;
+    }
+    
+    .items-list.grid-view {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    
+    .items-list.list-view {
+      display: flex;
+      flex-direction: column;
       gap: 5px;
     }
     
@@ -3131,9 +3264,8 @@ function initializeMapEditorExtras() {
       border: 1px solid #ddd;
       border-radius: 4px;
       padding: 5px;
-      text-align: center;
-      cursor: pointer;
       background: white;
+      cursor: pointer;
       transition: background 0.2s;
     }
     
@@ -3146,72 +3278,73 @@ function initializeMapEditorExtras() {
       background: rgba(76, 175, 80, 0.2);
     }
     
+    .palette-item.grid-item {
+      text-align: center;
+    }
+    
+    .palette-item.list-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .item-info {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .item-id {
+      font-size: 0.8em;
+      color: #666;
+    }
+    
+    .item-name {
+      font-weight: bold;
+    }
+    
+    .palette-item-info {
+      font-size: 0.8em;
+      margin-top: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
     .map-content {
       flex: 1;
       padding: 10px;
-      overflow: hidden;
+      overflow: auto;
       display: flex;
       flex-direction: column;
     }
     
     .map-controls {
-      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .map-control {
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .no-items {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+    }
+    
+    .map-canvas-container {
+      overflow: auto;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+      flex: 1;
+      min-height: 400px;
     }
   `;
   document.head.appendChild(style);
-
-  // Apply the improved layout to the map editor
-  setupImprovedLayout();
-}
-
-// Function to toggle items panel
-function toggleItemsPanel() {
-  const itemsPanel = document.getElementById('itemsPanel');
-  itemsPanelVisible = !itemsPanelVisible;
-  
-  if (itemsPanel) {
-    if (itemsPanelVisible) {
-      itemsPanel.classList.remove('collapsed');
-      document.getElementById('toggleItemsPanel').textContent = "▢";
-    } else {
-      itemsPanel.classList.add('collapsed');
-      document.getElementById('toggleItemsPanel').textContent = "☰";
-    }
-    
-    // Trigger resize to adjust map area
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 300);
-  }
-}
-
-// Filter items by search term and category
-function filterItems() {
-  const searchTerm = document.getElementById('itemSearch').value.toLowerCase();
-  const activeCategory = document.querySelector('.category-btn.active').dataset.category;
-  
-  const itemElements = document.querySelectorAll('.palette-item');
-  
-  itemElements.forEach(item => {
-    const itemName = item.querySelector('.item-name').textContent.toLowerCase();
-    const itemCategory = item.dataset.category || 'ground';
-    
-    const matchesSearch = !searchTerm || itemName.includes(searchTerm);
-    const matchesCategory = activeCategory === 'all' || itemCategory === activeCategory;
-    
-    if (matchesSearch && matchesCategory) {
-      item.style.display = 'block';
-    } else {
-      item.style.display = 'none';
-    }
-  });
-}
-
-// Setup improved layout
-function setupImprovedLayout() {
-  // Reorganize the map editor container
-  const mapEditorContainer = document.querySelector('.map-editor-container');
-  if (!mapEditorContainer) return;
   
   // Create a content div to hold everything except the items panel
   const mapContent = document.createElement('div');
@@ -3226,12 +3359,23 @@ function setupImprovedLayout() {
   
   // Add the content div to the container
   mapEditorContainer.appendChild(mapContent);
+  
+  // Initialize the view
+  const itemPalette = document.getElementById('itemPalette');
+  if (itemPalette && !itemPalette.classList.contains('grid-view') && !itemPalette.classList.contains('list-view')) {
+    itemPalette.classList.add('grid-view');
+  }
 }
 
 // Improved render item palette function
 function renderItemPalette() {
   const itemPalette = document.getElementById('itemPalette');
   if (!itemPalette) return;
+  
+  // Palette has been removed from the UI, so we don't need to do anything
+  if (window.location.hash === '#mapEditor' || document.getElementById('mapEditorTab').classList.contains('active')) {
+    return;
+  }
   
   itemPalette.innerHTML = '';
   
