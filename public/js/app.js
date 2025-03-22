@@ -262,6 +262,8 @@ function init() {
     fetchMap();
     // Fetch any existing outfits
     fetchOutfits();
+    // Initialize map editor extras
+    initializeMapEditorExtras();
   };
 
   // Add event listeners for Item Editor
@@ -909,10 +911,12 @@ function fetchItems() {
     .then(data => {
       items = data;
       renderItemsList();
-      renderItemPalette();
+      renderImprovedItemPalette();
     })
     .catch(error => {
       console.error('Error fetching items:', error);
+      // Fallback to static JSON if the API fails
+      loadItemsFromStaticJson();
     });
 }
 
@@ -964,6 +968,18 @@ function switchTab(tab) {
   } else if (tab === 'map') {
     mapEditorSection.classList.add('active');
     mapEditorTab.classList.add('active');
+    
+    // Initialize map editor extras when switching to map tab
+    if (typeof initializeMapEditorExtras === 'function') {
+      initializeMapEditorExtras();
+    }
+    
+    // Make sure the map is drawn
+    if (typeof safeDrawMap === 'function') {
+      safeDrawMap();
+    } else if (typeof drawMap === 'function') {
+      drawMap();
+    }
   } else if (tab === 'outfit') {
     outfitEditorSection.classList.add('active');
     outfitEditorTab.classList.add('active');
@@ -973,20 +989,71 @@ function switchTab(tab) {
   }
 }
 
+// Helper function to determine item category based on properties and name
+function getItemCategory(item) {
+  // First, check based on properties (these should take precedence)
+  if (item.properties) {
+    if (item.properties.pickupable) return 'item';
+    if (item.properties.blocking && !item.properties.walkable) return 'wall';
+    if (item.properties.walkable && !item.properties.blocking) return 'ground';
+    // If it's not pickupable, not a wall, and not walkable ground, it's likely decoration
+    if (!item.properties.pickupable && !item.properties.walkable && !item.properties.blocking) return 'decoration';
+  }
+  
+  // If we couldn't determine the category by properties, fall back to name-based categorization
+  const nameLower = item.name.toLowerCase();
+  
+  const categories = {
+    ground: ['grass', 'sand', 'water', 'floor', 'gravel', 'earth', 'ground', 'cobble', 'dirt'],
+    wall: ['wall', 'rock', 'stone', 'brick'],
+    decoration: ['torch', 'fire', 'statue', 'furniture', 'light'],
+    item: ['sword', 'staff', 'club', 'armor', 'shield', 'helm', 'boot', 'ring', 'amulet', 'belt']
+  };
+  
+  for (const [category, keywords] of Object.entries(categories)) {
+    if (keywords.some(keyword => nameLower.includes(keyword))) {
+      return category;
+    }
+  }
+  
+  // Default to decoration if we couldn't determine category
+  return 'decoration';
+}
+
 // Render item palette for quick selection
 function renderItemPalette() {
   const itemPalette = document.getElementById('itemPalette');
+  
   if (!itemPalette) return;
   
-  // Palette has been removed from the UI, so we don't need to do anything
-  if (window.location.hash === '#mapEditor' || document.getElementById('mapEditorTab').classList.contains('active')) {
-    return;
-  }
-  
+  // Clear existing palette items
   itemPalette.innerHTML = '';
   
-  if (items.length === 0) {
-    itemPalette.innerHTML = '<p>No items available</p>';
+  // Get the current category filter
+  const activeCategory = document.querySelector('.category-btn.active')?.dataset.category || 'all';
+  
+  // Get search text
+  const searchText = (document.getElementById('itemSearch')?.value || '').toLowerCase();
+  
+  // Filter items based on category and search text
+  const filteredItems = items.filter(item => {
+    // Check if item matches the category filter
+    const matches = activeCategory === 'all' || getItemCategory(item) === activeCategory;
+    
+    // Check if item matches search text
+    const searchMatches = !searchText || 
+                          item.name.toLowerCase().includes(searchText) ||
+                          item.id.toString().includes(searchText);
+    
+    return matches && searchMatches;
+  });
+  
+  // Display a message if no items match the filter
+  if (filteredItems.length === 0) {
+    const noItems = document.createElement('div');
+    noItems.className = 'no-items';
+    noItems.textContent = 'No items match the current filter';
+    itemPalette.appendChild(noItems);
     return;
   }
   
@@ -998,27 +1065,127 @@ function renderItemPalette() {
     item: ['sword', 'staff', 'club', 'armor', 'shield', 'helm', 'boot', 'ring', 'amulet', 'belt']
   };
   
-  // Helper function to determine item category
-  function getItemCategory(item) {
-    const nameLower = item.name.toLowerCase();
+  // Helper function definition removed - now using global getItemCategory function
+  
+  filteredItems.forEach(item => {
+    const paletteItem = document.createElement('div');
+    paletteItem.className = 'palette-item';
+    paletteItem.dataset.itemId = item.id;
+    paletteItem.dataset.category = getItemCategory(item);
     
-    for (const [category, keywords] of Object.entries(categories)) {
-      if (keywords.some(keyword => nameLower.includes(keyword))) {
-        return category;
-      }
+    if (selectedItemId === item.id) {
+      paletteItem.classList.add('selected');
     }
     
-    // Check based on properties
-    if (item.properties) {
-      if (item.properties.pickupable) return 'item';
-      if (item.properties.blocking) return 'wall';
-      if (item.properties.walkable) return 'ground';
+    // Create content wrapper for better styling
+    const itemContent = document.createElement('div');
+    itemContent.className = 'item-content';
+    
+    const itemCanvas = document.createElement('canvas');
+    itemCanvas.width = 32;
+    itemCanvas.height = 32;
+    const itemCtx = itemCanvas.getContext('2d');
+    
+    // Draw the sprite
+    if (item.sprites && item.sprites.length > 0) {
+      // Draw the first sprite from the variants
+      const firstSprite = item.sprites[0];
+      itemCtx.drawImage(
+        spriteSheet,
+        firstSprite.x * SPRITE_SIZE,
+        firstSprite.y * SPRITE_SIZE,
+        SPRITE_SIZE,
+        SPRITE_SIZE,
+        0, 0,
+        32, 32
+      );
+    } else if (item.sprite) {
+      // Draw the single sprite
+      itemCtx.drawImage(
+        spriteSheet,
+        item.sprite.x * SPRITE_SIZE,
+        item.sprite.y * SPRITE_SIZE,
+        SPRITE_SIZE,
+        SPRITE_SIZE,
+        0, 0,
+        32, 32
+      );
     }
     
-    return 'decoration';
+    itemContent.appendChild(itemCanvas);
+    
+    // Add a small label with item name
+    const label = document.createElement('div');
+    label.className = 'item-name';
+    label.textContent = item.name;
+    
+    itemContent.appendChild(label);
+    paletteItem.appendChild(itemContent);
+    
+    // Event listener for selecting an item
+    paletteItem.addEventListener('click', () => {
+      // Deselect all items
+      document.querySelectorAll('.palette-item').forEach(el => {
+        el.classList.remove('selected');
+      });
+      
+      // Select this item
+      paletteItem.classList.add('selected');
+      selectedItemId = item.id;
+    });
+    
+    itemPalette.appendChild(paletteItem);
+  });
+}
+
+// Improved render item palette function - renamed for clarity
+function renderImprovedItemPalette() {
+  const itemPalette = document.getElementById('itemPalette');
+  
+  if (!itemPalette) return;
+  
+  // Clear existing palette items
+  itemPalette.innerHTML = '';
+  
+  // Get the current category filter
+  const activeCategory = document.querySelector('.category-btn.active')?.dataset.category || 'all';
+  
+  // Get search text
+  const searchText = (document.getElementById('itemSearch')?.value || '').toLowerCase();
+  
+  // Filter items based on category and search text
+  const filteredItems = items.filter(item => {
+    // Check if item matches the category filter
+    const matches = activeCategory === 'all' || getItemCategory(item) === activeCategory;
+    
+    // Check if item matches search text
+    const searchMatches = !searchText || 
+                          item.name.toLowerCase().includes(searchText) ||
+                          item.id.toString().includes(searchText);
+    
+    return matches && searchMatches;
+  });
+  
+  // Display a message if no items match the filter
+  if (filteredItems.length === 0) {
+    const noItems = document.createElement('div');
+    noItems.className = 'no-items';
+    noItems.textContent = 'No items match the current filter';
+    itemPalette.appendChild(noItems);
+    return;
   }
   
-  items.forEach(item => {
+  // Group items by category
+  const categories = {
+    ground: ['grass', 'sand', 'water', 'floor', 'gravel', 'earth', 'ground', 'cobble', 'dirt'],
+    wall: ['wall', 'rock', 'stone', 'brick'],
+    decoration: ['torch', 'fire', 'statue', 'furniture', 'light'],
+    item: ['sword', 'staff', 'club', 'armor', 'shield', 'helm', 'boot', 'ring', 'amulet', 'belt']
+  };
+  
+  // Helper function definition removed - now using global getItemCategory function
+  
+  filteredItems.forEach(item => {
     const paletteItem = document.createElement('div');
     paletteItem.className = 'palette-item';
     paletteItem.dataset.itemId = item.id;
@@ -1629,14 +1796,17 @@ function displayTileItems(x, y) {
     // Event listener for selecting this item
     tileItemElement.addEventListener('click', () => {
       // Deselect all items
-      document.querySelectorAll('.tile-item').forEach(el => {
+      document.querySelectorAll('.palette-item').forEach(el => {
         el.classList.remove('selected');
       });
       
       // Select this item
       tileItemElement.classList.add('selected');
       selectedTileItemIndex = index;
-      removeItemBtn.disabled = false;
+      
+      // Enable the remove button
+      document.getElementById('removeItemBtn').disabled = false;
+      selectedTileItemId = tileItem.layer + '-' + tileItem.item.id;
     });
     
     tileItems.appendChild(tileItemElement);
@@ -2791,6 +2961,26 @@ function fillMapArea(x, y, itemId) {
 
 // When we create and add UI components, let's call a function to do this after DOM elements are available
 function initializeMapEditorExtras() {
+  // Set up event handlers
+  const mapCanvas = document.getElementById('mapCanvas');
+  const eraseModeCheckbox = document.getElementById('eraseMode');
+  const removeItemBtn = document.getElementById('removeItemBtn');
+  const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+  const mapControlsContainer = document.querySelector('.map-controls-container');
+  
+  // Set up controls toggle functionality
+  if (toggleControlsBtn && mapControlsContainer) {
+    toggleControlsBtn.addEventListener('click', function() {
+      mapControlsContainer.classList.toggle('collapsed');
+      
+      if (mapControlsContainer.classList.contains('collapsed')) {
+        toggleControlsBtn.textContent = 'Show Controls';
+      } else {
+        toggleControlsBtn.textContent = 'Hide Controls';
+      }
+    });
+  }
+  
   // Create and add fill mode toggle button
   const fillModeToggle = document.createElement('div');
   fillModeToggle.className = 'fill-mode-toggle map-control';
@@ -2894,48 +3084,59 @@ function initializeMapEditorExtras() {
   
   // Find a good place to add these elements
   const mapEditorContainer = document.querySelector('.map-editor-container');
+  const tileInfoSection = document.querySelector('.tile-info');
   
-  if (mapEditorContainer) {
-    // Add the controls
-    mapEditorContainer.appendChild(mapControls);
-    mapEditorContainer.appendChild(movementSpeedControl);
-    mapEditorContainer.appendChild(mapScrollInfo);
-    mapEditorContainer.appendChild(resizeControls);
-    mapEditorContainer.appendChild(customSizeControls);
-    mapEditorContainer.appendChild(fpsCounter);
+  // Create a container for all map editor controls
+  const mapEditorControls = document.createElement('div');
+  mapEditorControls.className = 'map-editor-controls';
+  
+  // Add the controls to this container
+  mapEditorControls.appendChild(mapControls);
+  mapEditorControls.appendChild(movementSpeedControl);
+  mapEditorControls.appendChild(mapScrollInfo);
+  mapEditorControls.appendChild(resizeControls);
+  mapEditorControls.appendChild(customSizeControls);
+  mapEditorControls.appendChild(fpsCounter);
+  
+  // Add the controls after the tile information section
+  if (tileInfoSection && !document.querySelector('.map-editor-controls')) {
+    tileInfoSection.after(mapEditorControls);
   }
   
-  // Create an improved items panel
-  const itemsPanel = document.createElement('div');
-  itemsPanel.id = 'itemsPanel';
-  itemsPanel.className = 'items-panel';
-  itemsPanel.innerHTML = `
-    <div class="items-header">
-      <h3>Items</h3>
-      <div class="view-controls">
-        <button id="gridViewBtn" class="view-btn active" title="Grid View">□□□</button>
-        <button id="listViewBtn" class="view-btn" title="List View">≡</button>
-      <button id="toggleItemsPanel">▢</button>
+  // Create an improved items panel - only if one doesn't already exist
+  let existingItemsPanel = document.getElementById('itemsPanel');
+  if (!existingItemsPanel) {
+    const itemsPanel = document.createElement('div');
+    itemsPanel.id = 'itemsPanel';
+    itemsPanel.className = 'items-panel';
+    itemsPanel.innerHTML = `
+      <div class="items-header">
+        <h3>Items</h3>
+        <div class="view-controls">
+          <button id="gridViewBtn" class="view-btn active" title="Grid View">□□□</button>
+          <button id="listViewBtn" class="view-btn" title="List View">≡</button>
+        <button id="toggleItemsPanel">▢</button>
+        </div>
       </div>
-    </div>
-    <div class="items-search">
-      <input type="text" id="itemSearch" placeholder="Search items...">
-      <div class="items-categories">
-        <button class="category-btn active" data-category="all">All</button>
-        <button class="category-btn" data-category="ground">Ground</button>
-        <button class="category-btn" data-category="wall">Wall</button>
-        <button class="category-btn" data-category="decoration">Decoration</button>
-        <button class="category-btn" data-category="item">Items</button>
+      <div class="items-search">
+        <input type="text" id="itemSearch" placeholder="Search items...">
+        <div class="items-categories">
+          <button class="category-btn active" data-category="all">All</button>
+          <button class="category-btn" data-category="ground">Ground</button>
+          <button class="category-btn" data-category="wall">Wall</button>
+          <button class="category-btn" data-category="decoration">Decoration</button>
+          <button class="category-btn" data-category="item">Items</button>
+        </div>
       </div>
-    </div>
-    <div id="itemPaletteContainer" class="items-list-container">
-      <div id="itemPalette" class="items-list grid-view"></div>
-    </div>
-  `;
-  
-  // Add the items panel to the map editor container
-  if (mapEditorContainer) {
-    mapEditorContainer.prepend(itemsPanel);
+      <div id="itemPaletteContainer" class="items-list-container">
+        <div id="itemPalette" class="items-list grid-view"></div>
+      </div>
+    `;
+    
+    // Add the items panel to the map editor container
+    if (mapEditorContainer) {
+      mapEditorContainer.prepend(itemsPanel);
+    }
   }
   
   // Set up event listeners
@@ -3125,9 +3326,9 @@ function toggleItemsPanel() {
   }
 }
 
-// Filter items by search term and category
+// Filter items based on search input and category
 function filterItems() {
-  // This is now handled directly in renderItemPalette
+  // Just call renderItemPalette which now handles all filtering
   renderItemPalette();
 }
 
@@ -3357,6 +3558,26 @@ function setupImprovedLayout() {
     }
   });
   
+  // Remove any duplicate items panels if they exist
+  const itemsPanels = document.querySelectorAll('#itemsPanel');
+  if (itemsPanels.length > 1) {
+    // Keep only the first one
+    for (let i = 1; i < itemsPanels.length; i++) {
+      itemsPanels[i].remove();
+    }
+  }
+  
+  // Remove any controls that are now positioned elsewhere
+  const controlsToRemove = ['mapControls', 'fpsCounter', 'movementSpeedControl', 'mapScrollInfo', 'resizeControls', 'customSizeControls'];
+  controlsToRemove.forEach(controlId => {
+    const controlsInMapContent = mapContent.querySelectorAll(`.${controlId}, #${controlId}`);
+    controlsInMapContent.forEach(control => {
+      if (!control.closest('.map-editor-controls')) {
+        control.remove();
+      }
+    });
+  });
+  
   // Add the content div to the container
   mapEditorContainer.appendChild(mapContent);
   
@@ -3368,19 +3589,39 @@ function setupImprovedLayout() {
 }
 
 // Improved render item palette function
-function renderItemPalette() {
+function renderImprovedItemPalette() {
   const itemPalette = document.getElementById('itemPalette');
+  
   if (!itemPalette) return;
   
-  // Palette has been removed from the UI, so we don't need to do anything
-  if (window.location.hash === '#mapEditor' || document.getElementById('mapEditorTab').classList.contains('active')) {
-    return;
-  }
-  
+  // Clear existing palette items
   itemPalette.innerHTML = '';
   
-  if (items.length === 0) {
-    itemPalette.innerHTML = '<p>No items available</p>';
+  // Get the current category filter
+  const activeCategory = document.querySelector('.category-btn.active')?.dataset.category || 'all';
+  
+  // Get search text
+  const searchText = (document.getElementById('itemSearch')?.value || '').toLowerCase();
+  
+  // Filter items based on category and search text
+  const filteredItems = items.filter(item => {
+    // Check if item matches the category filter
+    const matches = activeCategory === 'all' || getItemCategory(item) === activeCategory;
+    
+    // Check if item matches search text
+    const searchMatches = !searchText || 
+                          item.name.toLowerCase().includes(searchText) ||
+                          item.id.toString().includes(searchText);
+    
+    return matches && searchMatches;
+  });
+  
+  // Display a message if no items match the filter
+  if (filteredItems.length === 0) {
+    const noItems = document.createElement('div');
+    noItems.className = 'no-items';
+    noItems.textContent = 'No items match the current filter';
+    itemPalette.appendChild(noItems);
     return;
   }
   
@@ -3392,27 +3633,9 @@ function renderItemPalette() {
     item: ['sword', 'staff', 'club', 'armor', 'shield', 'helm', 'boot', 'ring', 'amulet', 'belt']
   };
   
-  // Helper function to determine item category
-  function getItemCategory(item) {
-    const nameLower = item.name.toLowerCase();
-    
-    for (const [category, keywords] of Object.entries(categories)) {
-      if (keywords.some(keyword => nameLower.includes(keyword))) {
-        return category;
-      }
-    }
-    
-    // Check based on properties
-    if (item.properties) {
-      if (item.properties.pickupable) return 'item';
-      if (item.properties.blocking) return 'wall';
-      if (item.properties.walkable) return 'ground';
-    }
-    
-    return 'decoration';
-  }
+  // Helper function definition removed - now using global getItemCategory function
   
-  items.forEach(item => {
+  filteredItems.forEach(item => {
     const paletteItem = document.createElement('div');
     paletteItem.className = 'palette-item';
     paletteItem.dataset.itemId = item.id;
@@ -3526,11 +3749,11 @@ function fetchItems() {
     .then(data => {
       items = data;
       renderItemsList(); // Original function to maintain compatibility
-      renderItemPalette(); // New enhanced item palette rendering
+      renderImprovedItemPalette(); // Using improved item palette rendering
     })
     .catch(error => {
       console.error('Error fetching items:', error);
-      // Attempt to load items from static JSON if API fails
+      // Fallback to static JSON if the API fails
       loadItemsFromStaticJson();
     });
 }
@@ -3542,10 +3765,10 @@ function loadItemsFromStaticJson() {
     .then(data => {
       items = data;
       renderItemsList();
-      renderItemPalette();
+      renderImprovedItemPalette();
     })
     .catch(error => {
-      console.error('Error loading static items:', error);
+      console.error('Error loading items from static JSON:', error);
     });
 }
 

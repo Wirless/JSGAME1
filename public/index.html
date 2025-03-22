@@ -250,6 +250,20 @@
           <button id="downloadMapBtn">Download Map JSON</button>
           <button id="clearMapBtn">Clear Map</button>
         </div>
+
+        <div class="tile-info">
+          <h3>Tile Information</h3>
+          <div class="selected-tile">
+            <p>Position: <span id="selectedTilePosition">None</span></p>
+            <p>Layer: <span id="selectedTileLayer">0</span></p>
+          </div>
+          <div id="tileItems" class="tile-items-list">
+            <p>No items on this tile</p>
+          </div>
+          <button id="removeItemBtn" disabled>Remove Selected Item</button>
+        </div>
+        
+        <button id="toggleControlsBtn" class="controls-toggle-btn">Hide Controls</button>
       </div>
       
       <div class="map-editor-container">
@@ -264,18 +278,6 @@
             <input type="checkbox" id="eraseMode">
             <label for="eraseMode">Erase Mode (right-click to erase)</label>
           </div>
-        </div>
-        
-        <div class="tile-info">
-          <h3>Tile Information</h3>
-          <div class="selected-tile">
-            <p>Position: <span id="selectedTilePosition">None</span></p>
-            <p>Layer: <span id="selectedTileLayer">0</span></p>
-          </div>
-          <div id="tileItems" class="tile-items-list">
-            <p>No items on this tile</p>
-          </div>
-          <button id="removeItemBtn" disabled>Remove Selected Item</button>
         </div>
       </div>
     </div>

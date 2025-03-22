@@ -311,14 +311,15 @@ select {
 /* Map Editor Styles */
 .map-controls-container {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   background-color: #fff;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 15px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
   gap: 15px;
+  position: relative;
+  transition: height 0.3s ease;
 }
 
 .map-controls, .map-actions {
@@ -326,6 +327,17 @@ select {
   align-items: center;
   gap: 15px;
   flex-wrap: wrap;
+}
+
+.map-controls {
+  flex: 1;
+  min-width: 300px;
+}
+
+.map-actions {
+  flex: 1;
+  min-width: 300px;
+  justify-content: flex-end;
 }
 
 .map-editor-container {
@@ -404,10 +416,10 @@ select {
 
 .tile-info {
   width: 250px;
-  background-color: #fff;
+  background-color: #f5f5f5;
   border-radius: 5px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 15px;
+  flex: 0 0 250px;
 }
 
 .selected-tile {
@@ -586,12 +598,21 @@ select {
     flex-direction: column;
   }
   
+  .map-controls-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
   .tile-info {
     width: 100%;
+    flex: auto;
+  }
+  
+  .map-actions {
+    justify-content: flex-start;
   }
   
   .map-canvas-container {
-    order: -1;
     min-width: 100%;
   }
 }
@@ -819,4 +840,93 @@ select {
 
 .admin-only {
   display: none; /* Hidden by default, shown if admin */
+}
+
+.controls-toggle-btn {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background-color: #333;
+  border-radius: 0 0 5px 5px;
+  padding: 5px 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  margin-top: -1px;
+}
+
+.map-controls-container.collapsed {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.map-controls-container.collapsed .controls-toggle-btn {
+  top: 0;
+}
+
+/* Map Editor Controls */
+.map-editor-controls {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.map-control {
+  margin-bottom: 10px;
+  padding: 8px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.map-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.movement-speed-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.map-scroll-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.resize-controls, .custom-size-controls {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.custom-size-controls input {
+  width: 70px;
+}
+
+.fps-counter {
+  padding: 5px 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+@media (max-width: 768px) {
+  .map-editor-controls {
+    flex-direction: column;
+  }
 } 
