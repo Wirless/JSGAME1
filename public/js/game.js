@@ -54,7 +54,7 @@ const gameState = {
       distance: 1,
       magic: 1
     },
-    // New inventory property
+    // Equipment property
     equipment: {
       SLOT_NECKLACE: null,
       SLOT_HEAD: null, 
@@ -65,7 +65,10 @@ const gameState = {
       SLOT_LEFTRING: null,
       SLOT_WINGS: null,
       SLOT_RIGHTRING: null
-    }
+    },
+    // Player's backpack inventory (4 slots)
+    inventory: [null, null, null, null],
+    selectedInventorySlot: -1 // -1 means no slot selected
   },
   tileSize: 32,
   viewport: {
@@ -140,6 +143,9 @@ function init() {
           // Center viewport on player
           centerViewportOnPlayer();
           
+          // Add test items around the player
+          placeTestItems();
+          
           // Start game loop
           gameLoop();
           
@@ -150,6 +156,8 @@ function init() {
           addChatMessage('Welcome to MSRE RPG!', 'server');
           addChatMessage(`Welcome, ${userInfo.username}!`, 'server');
           addChatMessage(`You are in ${initialSector.name || 'an unknown location'}.`, 'server');
+          addChatMessage('Press SPACE to pick up items on the ground.', 'server');
+          addChatMessage('Press 1-4 to select inventory slots, E to use selected item, Q to drop it.', 'server');
         })
         .catch(error => {
           console.error('Error loading sector:', error);
@@ -313,6 +321,22 @@ function setupEventListeners() {
         break;
       case 'i': // 'i' key to toggle inventory
         toggleInventory();
+        break;
+      case ' ': // Space bar to pick up items
+        pickupItem();
+        break;
+      case 'e': // 'e' key to use selected item
+        useSelectedItem();
+        break;
+      case 'q': // 'q' key to drop selected item
+        dropSelectedItem();
+        break;
+      case '1': // Number keys to select inventory slots
+      case '2':
+      case '3':
+      case '4':
+        const slotIndex = parseInt(e.key) - 1;
+        handleInventorySlotClick(slotIndex);
         break;
     }
   });
@@ -933,6 +957,9 @@ function initInventorySystem() {
     slot.querySelector('.tooltip').textContent = getSlotName(slot.getAttribute('data-slot'));
   });
   
+  // Initialize inventory slots
+  initInventorySlots();
+  
   // Make inventory visible by default
   const inventoryWindow = document.querySelector('.inventory-window');
   if (inventoryWindow) {
@@ -948,6 +975,220 @@ function initInventorySystem() {
   // Show initial message about inventory
   addChatMessage('Press I or click the Inventory button to toggle inventory', 'server');
   addChatMessage('You can drag the inventory window by its header', 'server');
+}
+
+// Initialize inventory slots
+function initInventorySlots() {
+  const inventorySlots = document.querySelectorAll('.inventory-slot');
+  
+  // Add click event listener to each inventory slot
+  inventorySlots.forEach(slot => {
+    slot.addEventListener('click', () => {
+      const slotIndex = parseInt(slot.getAttribute('data-index'));
+      handleInventorySlotClick(slotIndex);
+    });
+  });
+  
+  // Update inventory UI
+  updateInventoryUI();
+}
+
+// Handle inventory slot click
+function handleInventorySlotClick(slotIndex) {
+  // If the slot is empty, nothing to do
+  if (!gameState.player.inventory[slotIndex]) {
+    // Deselect any currently selected slot
+    gameState.player.selectedInventorySlot = -1;
+    updateInventoryUI();
+    return;
+  }
+  
+  // If the slot was already selected, deselect it
+  if (gameState.player.selectedInventorySlot === slotIndex) {
+    gameState.player.selectedInventorySlot = -1;
+    addChatMessage(`Item deselected`, 'game');
+  } else {
+    // Select the slot
+    gameState.player.selectedInventorySlot = slotIndex;
+    const item = gameState.player.inventory[slotIndex];
+    addChatMessage(`Selected ${item.name}`, 'game');
+  }
+  
+  // Update the UI
+  updateInventoryUI();
+}
+
+// Update the inventory UI
+function updateInventoryUI() {
+  const inventorySlots = document.querySelectorAll('.inventory-slot');
+  
+  // Update each inventory slot with the corresponding item
+  inventorySlots.forEach(slot => {
+    const slotIndex = parseInt(slot.getAttribute('data-index'));
+    const item = gameState.player.inventory[slotIndex];
+    
+    // Clear existing content except tooltip
+    while (slot.firstChild) {
+      if (slot.firstChild.className === 'tooltip') {
+        break;
+      }
+      slot.removeChild(slot.firstChild);
+    }
+    
+    // Reset active state
+    slot.classList.remove('active');
+    
+    // Mark active slot if selected
+    if (slotIndex === gameState.player.selectedInventorySlot) {
+      slot.classList.add('active');
+    }
+    
+    if (item) {
+      // Create image element for the item
+      const itemImage = document.createElement('div');
+      itemImage.style.width = '32px';
+      itemImage.style.height = '32px';
+      itemImage.style.background = `url('/tileset.png')`;
+      
+      // Use the item sprite for display in inventory
+      if (item.sprite) {
+        itemImage.style.backgroundPosition = `-${item.sprite.x * 32}px -${item.sprite.y * 32}px`;
+      } else if (item.sprites && item.sprites.length > 0) {
+        // If item has multiple sprites, use the first one
+        itemImage.style.backgroundPosition = `-${item.sprites[0].x * 32}px -${item.sprites[0].y * 32}px`;
+      }
+      
+      slot.prepend(itemImage);
+      
+      // Update tooltip with item info
+      const tooltip = slot.querySelector('.tooltip');
+      if (tooltip) {
+        tooltip.textContent = item.name;
+        
+        // Add stats info if available
+        let statsText = '';
+        if (item.attack) statsText += ` Atk:${item.attack}`;
+        if (item.defense) statsText += ` Def:${item.defense}`;
+        
+        if (statsText) {
+          tooltip.textContent += ` (${statsText.trim()})`;
+        }
+      }
+    } else {
+      // Reset tooltip to default
+      const tooltip = slot.querySelector('.tooltip');
+      if (tooltip) {
+        tooltip.textContent = 'Empty';
+      }
+    }
+  });
+}
+
+// Add an item to player's inventory
+function addItemToInventory(item) {
+  // Find first empty slot
+  const emptySlotIndex = gameState.player.inventory.findIndex(slot => slot === null);
+  
+  if (emptySlotIndex !== -1) {
+    // Add item to inventory
+    gameState.player.inventory[emptySlotIndex] = item;
+    
+    // Update UI
+    updateInventoryUI();
+    
+    // Notify player
+    addChatMessage(`Added ${item.name} to inventory`, 'game');
+    return true;
+  } else {
+    // Inventory is full
+    addChatMessage('Your inventory is full!', 'game');
+    return false;
+  }
+}
+
+// Remove an item from player's inventory
+function removeItemFromInventory(slotIndex) {
+  if (slotIndex >= 0 && slotIndex < gameState.player.inventory.length) {
+    const item = gameState.player.inventory[slotIndex];
+    
+    if (item) {
+      // Remove item from inventory
+      gameState.player.inventory[slotIndex] = null;
+      
+      // If the removed slot was selected, deselect it
+      if (gameState.player.selectedInventorySlot === slotIndex) {
+        gameState.player.selectedInventorySlot = -1;
+      }
+      
+      // Update UI
+      updateInventoryUI();
+      
+      // Notify player
+      addChatMessage(`Removed ${item.name} from inventory`, 'game');
+      return item;
+    }
+  }
+  
+  return null;
+}
+
+// Use the currently selected item
+function useSelectedItem() {
+  const selectedIndex = gameState.player.selectedInventorySlot;
+  
+  if (selectedIndex === -1) {
+    addChatMessage('No item selected', 'game');
+    return;
+  }
+  
+  const item = gameState.player.inventory[selectedIndex];
+  
+  if (!item) {
+    // Should not happen, but just in case
+    gameState.player.selectedInventorySlot = -1;
+    updateInventoryUI();
+    return;
+  }
+  
+  // Check if item is useable
+  if (item.properties && item.properties.useable) {
+    // Handle item use
+    addChatMessage(`Used ${item.name}`, 'game');
+    
+    // If the item is consumable, remove it from inventory
+    if (item.properties.consumable) {
+      removeItemFromInventory(selectedIndex);
+    }
+    
+    // Handle item effects
+    if (item.effects) {
+      applyItemEffects(item.effects);
+    }
+  } else {
+    addChatMessage(`${item.name} cannot be used`, 'game');
+  }
+}
+
+// Apply item effects
+function applyItemEffects(effects) {
+  if (effects.health) {
+    gameState.player.health = Math.min(
+      gameState.player.maxHealth, 
+      gameState.player.health + effects.health
+    );
+    addChatMessage(`Healed ${effects.health} health points`, 'game');
+  }
+  
+  if (effects.mana) {
+    gameState.player.mana = Math.min(
+      gameState.player.maxMana, 
+      gameState.player.mana + effects.mana
+    );
+    addChatMessage(`Restored ${effects.mana} mana points`, 'game');
+  }
+  
+  // Update stats display
+  updateStatsDisplay();
 }
 
 // Setup draggable inventory window
@@ -1194,6 +1435,153 @@ function updateEquipmentStats() {
   // Update UI with calculated stats
   document.getElementById('attackStat').textContent = totalAttack;
   document.getElementById('equipDefenseStat').textContent = totalDefense;
+}
+
+// Find pickupable items at the player's position
+function findPickupableItemsAtPlayer() {
+  const x = gameState.player.x;
+  const y = gameState.player.y;
+  const pickupableItems = [];
+  
+  // Skip if no sector data or items loaded
+  if (!gameState.currentSector || !gameState.items) return pickupableItems;
+  
+  // Check each layer for pickupable items
+  for (let layerIndex = 0; layerIndex < gameState.currentSector.layers.length; layerIndex++) {
+    const layer = gameState.currentSector.layers[layerIndex];
+    
+    // Skip empty layers
+    if (!layer || layer.length === 0) continue;
+    
+    // Find tiles at the player's position
+    const tilesAtPosition = layer.filter(tile => tile.x === x && tile.y === y);
+    
+    // Check each tile for pickupable items
+    for (const tile of tilesAtPosition) {
+      const item = gameState.items.find(item => item.id === tile.itemId);
+      
+      // Add to pickupable items if the item is pickupable
+      if (item && item.properties && item.properties.pickupable) {
+        pickupableItems.push({
+          item,
+          layerIndex,
+          tile
+        });
+      }
+    }
+  }
+  
+  return pickupableItems;
+}
+
+// Pick up an item at the player's position
+function pickupItem() {
+  // Find pickupable items at player's position
+  const pickupableItems = findPickupableItemsAtPlayer();
+  
+  if (pickupableItems.length > 0) {
+    // Get the first pickupable item
+    const { item, layerIndex, tile } = pickupableItems[0];
+    
+    // Try to add item to inventory
+    if (addItemToInventory(item)) {
+      // If successful, remove the item from the map
+      removeItemFromMap(layerIndex, tile);
+      
+      // Play a pickup sound if implemented
+      // playSound('pickup');
+    }
+  } else {
+    addChatMessage('There is nothing to pick up here', 'game');
+  }
+}
+
+// Remove an item from the map
+function removeItemFromMap(layerIndex, tile) {
+  // Get the layer
+  const layer = gameState.currentSector.layers[layerIndex];
+  
+  // Find the tile index
+  const tileIndex = layer.findIndex(t => 
+    t.x === tile.x && t.y === tile.y && t.itemId === tile.itemId
+  );
+  
+  // Remove the tile from the layer
+  if (tileIndex !== -1) {
+    layer.splice(tileIndex, 1);
+  }
+}
+
+// Drop the selected item at the player's position
+function dropSelectedItem() {
+  const selectedIndex = gameState.player.selectedInventorySlot;
+  
+  if (selectedIndex === -1) {
+    addChatMessage('No item selected to drop', 'game');
+    return;
+  }
+  
+  // Get the item
+  const item = gameState.player.inventory[selectedIndex];
+  
+  if (item) {
+    // Remove from inventory
+    removeItemFromInventory(selectedIndex);
+    
+    // Add to map at player's position
+    addItemToMap(item, gameState.player.x, gameState.player.y);
+    
+    addChatMessage(`Dropped ${item.name} on the ground`, 'game');
+  }
+}
+
+// Add an item to the map at the specified position
+function addItemToMap(item, x, y) {
+  // Skip if no sector data
+  if (!gameState.currentSector || !gameState.currentSector.layers) return;
+  
+  // Add to the top layer
+  const topLayerIndex = gameState.currentSector.layers.length - 1;
+  const topLayer = gameState.currentSector.layers[topLayerIndex];
+  
+  // Create a new tile for the item
+  const newTile = {
+    x,
+    y,
+    itemId: item.id
+  };
+  
+  // Add the tile to the top layer
+  topLayer.push(newTile);
+}
+
+// Place test items around the player for testing
+function placeTestItems() {
+  // Find health potion item
+  const healthPotion = gameState.items.find(item => item.id === 2000);
+  const manaPotion = gameState.items.find(item => item.id === 2001);
+  const goldCoin = gameState.items.find(item => item.id === 2002);
+  const magicScroll = gameState.items.find(item => item.id === 2003);
+  
+  if (healthPotion) {
+    // Place health potion one tile to the right of player
+    addItemToMap(healthPotion, gameState.player.x + 1, gameState.player.y);
+  }
+  
+  if (manaPotion) {
+    // Place mana potion one tile to the left of player
+    addItemToMap(manaPotion, gameState.player.x - 1, gameState.player.y);
+  }
+  
+  if (goldCoin) {
+    // Place gold coin one tile above the player
+    addItemToMap(goldCoin, gameState.player.x, gameState.player.y - 1);
+  }
+  
+  if (magicScroll) {
+    // Place magic scroll one tile below the player
+    addItemToMap(magicScroll, gameState.player.x, gameState.player.y + 1);
+  }
 }
 
 // Start the game when the page loads
