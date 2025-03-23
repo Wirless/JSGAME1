@@ -335,6 +335,114 @@
       background-color: rgba(52, 152, 219, 0.3);
       cursor: grabbing;
     }
+    
+    /* Inventory and UI buttons */
+    .game-ui-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    
+    .ui-button {
+      background-color: rgba(0, 0, 0, 0.7);
+      border: 1px solid #3498db;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .ui-button:hover {
+      background-color: rgba(52, 152, 219, 0.7);
+    }
+    
+    /* Minimap styles */
+    .minimap-window {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      width: 200px;
+      height: 200px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 5px;
+      padding: 10px;
+      z-index: 100;
+      cursor: default;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      border: 1px solid #3498db;
+      display: none;
+    }
+    
+    .minimap-header {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #3498db;
+      padding-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+    
+    .minimap-canvas-container {
+      width: 100%;
+      height: calc(100% - 40px);
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #minimapCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: #111;
+    }
+    
+    .minimap-controls {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    
+    .minimap-zoom-btn {
+      background-color: rgba(0, 0, 0, 0.5);
+      border: 1px solid #3498db;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 3px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .minimap-zoom-btn:hover {
+      background-color: rgba(52, 152, 219, 0.5);
+    }
+
+    /* Animation for inventory and minimap windows */
+    .window-bounce {
+      animation: bounceIn 0.3s ease;
+    }
+    
+    @keyframes bounceIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* Dragging style */
+    .dragging {
+      cursor: move !important;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
@@ -342,67 +450,67 @@
     <div class="game-window">
       <canvas id="gameCanvas"></canvas>
       
-      <!-- Toggle button for inventory -->
-      <button id="toggleInventoryBtn" class="inventory-toggle">
-        Inventory
-      </button>
+      <!-- UI Buttons -->
+      <div class="game-ui-buttons">
+        <button id="toggleInventoryBtn" class="ui-button">Inventory</button>
+        <button id="toggleMinimapBtn" class="ui-button">Minimap</button>
+      </div>
       
       <!-- Inventory Window -->
-      <div class="inventory-window">
-        <div class="inventory-header" id="inventoryHeader">
-          <div class="drag-handle">Equipment</div>
-          <button class="close-btn" id="closeInventoryBtn">×</button>
+      <div class="inventory-window" style="display: none;">
+        <div id="inventoryHeader" class="inventory-header">
+          <div class="drag-handle">Inventory</div>
+          <button id="closeInventoryBtn" class="close-btn">×</button>
         </div>
+        
         <div class="equipment-grid">
-          <!-- Row 1: Necklace, Helmet, Backpack -->
-          <div class="equipment-slot" data-slot="SLOT_NECKLACE">
-            <div class="tooltip">Necklace</div>
-          </div>
+          <!-- Helmet -->
           <div class="equipment-slot" data-slot="SLOT_HEAD">
             <div class="tooltip">Helmet</div>
           </div>
+          
+          <!-- Necklace -->
+          <div class="equipment-slot" data-slot="SLOT_NECKLACE">
+            <div class="tooltip">Necklace</div>
+          </div>
+          
+          <!-- Backpack -->
           <div class="equipment-slot" data-slot="SLOT_BACKPACK">
             <div class="tooltip">Backpack</div>
           </div>
           
-          <!-- Row 2: Left Hand, Armor, Right Hand -->
+          <!-- Left hand -->
           <div class="equipment-slot" data-slot="SLOT_LEFTHAND">
             <div class="tooltip">Left Hand</div>
           </div>
+          
+          <!-- Armor -->
           <div class="equipment-slot" data-slot="SLOT_ARMOR">
             <div class="tooltip">Armor</div>
           </div>
+          
+          <!-- Right hand -->
           <div class="equipment-slot" data-slot="SLOT_RIGHTHAND">
             <div class="tooltip">Right Hand</div>
           </div>
           
-          <!-- Row 3: Gloves, Wings, Rings -->
+          <!-- Left ring -->
           <div class="equipment-slot" data-slot="SLOT_LEFTRING">
             <div class="tooltip">Left Ring</div>
           </div>
+          
+          <!-- Wings -->
           <div class="equipment-slot wings-slot" data-slot="SLOT_WINGS">
             <div class="tooltip">Wings</div>
           </div>
+          
+          <!-- Right ring -->
           <div class="equipment-slot" data-slot="SLOT_RIGHTRING">
             <div class="tooltip">Right Ring</div>
           </div>
         </div>
         
-        <div class="inventory-stats">
-          <div class="stat-item">
-            <span>Attack:</span>
-            <span id="attackStat">0</span>
-          </div>
-          <div class="stat-item">
-            <span>Defense:</span>
-            <span id="equipDefenseStat">0</span>
-          </div>
-        </div>
-        
-        <!-- Player Inventory Section -->
-        <div class="inventory-header">
-          <div>Inventory</div>
-        </div>
+        <h4 style="text-align: center; margin: 10px 0 5px;">Inventory Slots</h4>
         <div class="inventory-slots">
           <div class="inventory-slot" data-index="0">
             <div class="tooltip">Empty</div>
@@ -418,76 +526,107 @@
           </div>
         </div>
       </div>
+      
+      <!-- Minimap Window -->
+      <div class="minimap-window">
+        <div id="minimapHeader" class="minimap-header">
+          <div class="drag-handle">Minimap</div>
+          <button id="closeMinimapBtn" class="close-btn">×</button>
+        </div>
+        
+        <div class="minimap-canvas-container">
+          <canvas id="minimapCanvas"></canvas>
+        </div>
+        
+        <div class="minimap-controls">
+          <button id="zoomInBtn" class="minimap-zoom-btn">+</button>
+          <button id="zoomOutBtn" class="minimap-zoom-btn">-</button>
+        </div>
+      </div>
     </div>
     <div class="stats-window">
-      <div class="stats-header">Character Stats</div>
-      <div class="stats-content">
-        <div class="stat-item">
-          <span>Health:</span>
-          <span id="healthStat">100/100</span>
-        </div>
-        <div class="stat-item">
-          <span>Mana:</span>
-          <span id="manaStat">50/50</span>
-        </div>
-        <div class="stat-item">
-          <span>Strength:</span>
-          <span id="strengthStat">10</span>
-        </div>
-        <div class="stat-item">
-          <span>Defense:</span>
-          <span id="defenseStat">5</span>
-        </div>
-        <div class="stat-item">
-          <span>Dexterity:</span>
-          <span id="dexterityStat">8</span>
-        </div>
-        <div class="stat-item">
-          <span>Agility:</span>
-          <span id="agilityStat">7</span>
-        </div>
-        <div class="stat-item">
-          <span>Intelligence:</span>
-          <span id="intelligenceStat">6</span>
-        </div>
-        <div class="stat-item">
-          <span>Luck:</span>
-          <span id="luckStat">5</span>
-        </div>
-        <div class="stats-header">Skills</div>
-        <div class="stat-item">
-          <span>Melee:</span>
-          <span id="meleeStat">10</span>
-        </div>
-        <div class="skill-progress">
-          <div id="meleeProgress" class="skill-bar" style="width: 10%;"></div>
-        </div>
-        <div class="stat-item">
-          <span>Distance:</span>
-          <span id="distanceStat">5</span>
-        </div>
-        <div class="skill-progress">
-          <div id="distanceProgress" class="skill-bar" style="width: 5%;"></div>
-        </div>
-        <div class="stat-item">
-          <span>Magic:</span>
-          <span id="magicStat">8</span>
-        </div>
-        <div class="skill-progress">
-          <div id="magicProgress" class="skill-bar" style="width: 8%;"></div>
-        </div>
+      <div class="stats-header">Player Stats</div>
+      <div class="stat-item">
+        <span>Health:</span>
+        <span id="healthStat">100/100</span>
+      </div>
+      <div class="stat-item">
+        <span>Mana:</span>
+        <span id="manaStat">50/50</span>
+      </div>
+      <hr>
+      
+      <div class="stats-header">Equipment Stats</div>
+      <div class="stat-item">
+        <span>Attack:</span>
+        <span id="attackStat">0</span>
+      </div>
+      <div class="stat-item">
+        <span>Defense:</span>
+        <span id="equipDefenseStat">0</span>
+      </div>
+      <hr>
+      
+      <div class="stats-header">Attributes</div>
+      <div class="stat-item">
+        <span>Strength:</span>
+        <span id="strengthStat">1</span>
+      </div>
+      <div class="stat-item">
+        <span>Defense:</span>
+        <span id="defenseStat">1</span>
+      </div>
+      <div class="stat-item">
+        <span>Dexterity:</span>
+        <span id="dexterityStat">1</span>
+      </div>
+      <div class="stat-item">
+        <span>Agility:</span>
+        <span id="agilityStat">1</span>
+      </div>
+      <div class="stat-item">
+        <span>Intelligence:</span>
+        <span id="intelligenceStat">1</span>
+      </div>
+      <div class="stat-item">
+        <span>Luck:</span>
+        <span id="luckStat">1</span>
+      </div>
+      <hr>
+      
+      <div class="stats-header">Skills</div>
+      <div class="stat-item">
+        <span>Melee:</span>
+        <span id="meleeStat">1</span>
+      </div>
+      <div class="skill-progress">
+        <div id="meleeProgress" class="skill-bar" style="width: 1%;"></div>
+      </div>
+      <div class="stat-item">
+        <span>Distance:</span>
+        <span id="distanceStat">1</span>
+      </div>
+      <div class="skill-progress">
+        <div id="distanceProgress" class="skill-bar" style="width: 1%;"></div>
+      </div>
+      <div class="stat-item">
+        <span>Magic:</span>
+        <span id="magicStat">1</span>
+      </div>
+      <div class="skill-progress">
+        <div id="magicProgress" class="skill-bar" style="width: 1%;"></div>
       </div>
     </div>
   </div>
   <div class="chat-window">
     <div class="chat-tabs">
       <div class="chat-tab active" data-channel="game">Game</div>
-      <div class="chat-tab" data-channel="server">Server</div>
       <div class="chat-tab" data-channel="trade">Trade</div>
+      <div class="chat-tab" data-channel="help">Help</div>
     </div>
-    <div class="chat-messages" id="chatMessages"></div>
+    <div id="chatMessages" class="chat-messages"></div>
     <div class="chat-input">
-      <input type="text" id="chatInputField" placeholder="Type your message here...">
+      <input type="text" id="chatInputField" placeholder="Type your message...">
       <button id="sendButton">Send</button>
     </div>
   </div>

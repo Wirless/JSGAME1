@@ -29,6 +29,14 @@ const gameState = {
   outfits: null,
   inDungeon: false,      // Flag to indicate if player is in a dungeon
   currentDungeon: null,  // Stores the current dungeon data
+  minimap: {
+    canvas: null,
+    ctx: null,
+    zoom: 1,
+    size: 32,           // Size of each minimap tile in pixels
+    isDragging: false,
+    offset: { x: 0, y: 0 }
+  },
   player: {
     x: 0,
     y: 0,
@@ -100,15 +108,85 @@ const dungeonGenerator = {
   dungeons: new Map(), // Map of player name -> dungeonData
   
   // Generate a new dungeon for the player
-  generateDungeon: function(size = 100, roomSizeMin = 3, roomSizeMax = 9) {
-    // Create the basic dungeon structure with rooms and corridors
-    const dungeon = this._generateBasicDungeon(size, roomSizeMin, roomSizeMax);
+  generateDungeon: function(level = 1, size = 100) {
+    // Generate the base dungeon layout
+    const dungeon = this._generateBasicDungeon(size);
     
-    // Populate with monsters and loot
-    this.populateDungeon(dungeon);
+    // Set dungeon level
+    dungeon.level = level;
     
-    // Store the dungeon and return it
-    this.dungeons.set(gameState.player.name, dungeon);
+    // Scale difficulty based on level
+    const difficultyMultiplier = 1 + (level * 0.25);
+    
+    // Add monsters based on level
+    const monsterCount = Math.floor(5 + (level * 2));
+    
+    // Add monsters to all rooms except start and end
+    for (let i = 1; i < dungeon.rooms.length - 1; i++) {
+      const room = dungeon.rooms[i];
+      
+      // Add 1-3 monsters per room
+      const roomMonsterCount = Math.floor(Math.random() * 3) + 1;
+      
+      for (let j = 0; j < roomMonsterCount; j++) {
+        if (dungeon.layers[1] === undefined) {
+          dungeon.layers[1] = [];
+        }
+        
+        // Random position within the room (not at the edge)
+        const monsterX = Math.floor(Math.random() * (room.width - 2)) + room.x + 1;
+        const monsterY = Math.floor(Math.random() * (room.height - 2)) + room.y + 1;
+        
+        // Create monster based on level
+        let monsterId = 40; // Default: slime
+        
+        // Higher chance of stronger monsters on deeper levels
+        const monsterRoll = Math.random() * 100;
+        
+        if (level >= 5 && monsterRoll > 75) {
+          monsterId = 44; // Dark Knight
+        } else if (level >= 3 && monsterRoll > 60) {
+          monsterId = 42; // Orc
+        } else if (level >= 2 && monsterRoll > 40) {
+          monsterId = 41; // Goblin
+        }
+        
+        // Add monster to the dungeon
+        dungeon.layers[1].push({
+          x: monsterX,
+          y: monsterY,
+          itemId: monsterId
+        });
+      }
+      
+      // Add some loot (30% chance per room)
+      if (Math.random() < 0.3) {
+        // Random position for loot
+        const lootX = Math.floor(Math.random() * (room.width - 2)) + room.x + 1;
+        const lootY = Math.floor(Math.random() * (room.height - 2)) + room.y + 1;
+        
+        // Random loot based on level
+        let lootPool = [20, 21, 22]; // potions, gold
+        
+        // Add better loot on deeper levels
+        if (level >= 3) {
+          lootPool.push(25, 26); // better weapons
+        }
+        if (level >= 5) {
+          lootPool.push(30, 31); // good armor
+        }
+        
+        const lootId = lootPool[Math.floor(Math.random() * lootPool.length)];
+        
+        // Add loot to the dungeon
+        dungeon.layers[1].push({
+          x: lootX,
+          y: lootY,
+          itemId: lootId
+        });
+      }
+    }
+    
     return dungeon;
   },
   
@@ -124,34 +202,67 @@ const dungeonGenerator = {
   
   // Create a corridor between two points
   createCorridor: function(dungeon, x1, y1, x2, y2) {
-    // Decide randomly whether to go horizontal first or vertical first
-    const horizontalFirst = Math.random() >= 0.5;
-    
     // Current position
     let currentX = x1;
     let currentY = y1;
     
-    if (horizontalFirst) {
-      // Move horizontally first, then vertically
-      while (currentX !== x2) {
-        currentX += currentX < x2 ? 1 : -1;
+    // Distance to travel
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    
+    // Direction to travel
+    const sx = x1 < x2 ? 1 : -1;
+    const sy = y1 < y2 ? 1 : -1;
+    
+    // Maximum segment length (shorter corridors)
+    const maxSegmentLength = 5;
+    
+    // Path creation with multiple turns
+    while (currentX !== x2 || currentY !== y2) {
+      // Decide which direction to go
+      const horizontalFirst = Math.random() > 0.5;
+      
+      // Determine length of current segment (1 to maxSegmentLength)
+      const segmentLength = Math.floor(Math.random() * maxSegmentLength) + 1;
+      
+      if (horizontalFirst && currentX !== x2) {
+        // Move horizontally
+        for (let i = 0; i < segmentLength && currentX !== x2; i++) {
+          currentX += sx;
+          this.setFloorTile(dungeon, currentX, currentY);
+        }
+      } else if (currentY !== y2) {
+        // Move vertically
+        for (let i = 0; i < segmentLength && currentY !== y2; i++) {
+          currentY += sy;
+          this.setFloorTile(dungeon, currentX, currentY);
+        }
+      } else if (currentX !== x2) {
+        // If only horizontal movement is left
+        currentX += sx;
         this.setFloorTile(dungeon, currentX, currentY);
       }
       
-      while (currentY !== y2) {
-        currentY += currentY < y2 ? 1 : -1;
-        this.setFloorTile(dungeon, currentX, currentY);
-      }
-    } else {
-      // Move vertically first, then horizontally
-      while (currentY !== y2) {
-        currentY += currentY < y2 ? 1 : -1;
-        this.setFloorTile(dungeon, currentX, currentY);
-      }
-      
-      while (currentX !== x2) {
-        currentX += currentX < x2 ? 1 : -1;
-        this.setFloorTile(dungeon, currentX, currentY);
+      // Small chance to add a random bend (if not at destination)
+      if ((currentX !== x2 || currentY !== y2) && Math.random() < 0.3) {
+        // Random perpendicular movement
+        if (Math.random() > 0.5 && currentX !== x2) {
+          // Horizontal bend
+          const bendX = currentX + (Math.random() > 0.5 ? 1 : -1);
+          // Check if the bend is within bounds
+          if (bendX > 0 && bendX < dungeon.width - 1) {
+            currentX = bendX;
+            this.setFloorTile(dungeon, currentX, currentY);
+          }
+        } else if (currentY !== y2) {
+          // Vertical bend
+          const bendY = currentY + (Math.random() > 0.5 ? 1 : -1);
+          // Check if the bend is within bounds
+          if (bendY > 0 && bendY < dungeon.height - 1) {
+            currentY = bendY;
+            this.setFloorTile(dungeon, currentX, currentY);
+          }
+        }
       }
     }
   },
@@ -444,6 +555,9 @@ const dungeonGenerator = {
       // Mark the rooms as connected
       roomA.connects.push(i + 1);
       roomB.connects.push(i);
+      
+      // Add stone arches at the entrance/exit points of corridors
+      this.placeArchBetweenRooms(dungeon, roomA, roomB);
     }
     
     // Place stairs in the first and last room
@@ -484,6 +598,64 @@ const dungeonGenerator = {
     }
     
     return dungeon;
+  },
+  
+  // Helper function to place stone arches at room entrances/exits
+  placeArchBetweenRooms: function(dungeon, roomA, roomB) {
+    // Determine direction between rooms
+    const dx = roomB.center.x - roomA.center.x;
+    const dy = roomB.center.y - roomA.center.y;
+    
+    // Find exit point from roomA
+    let exitX = roomA.center.x;
+    let exitY = roomA.center.y;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal corridor is dominant
+      exitX = dx > 0 ? roomA.x + roomA.width : roomA.x - 1;
+      exitY = roomA.center.y;
+    } else {
+      // Vertical corridor is dominant
+      exitX = roomA.center.x;
+      exitY = dy > 0 ? roomA.y + roomA.height : roomA.y - 1;
+    }
+    
+    // Find entrance point to roomB
+    let entranceX = roomB.center.x;
+    let entranceY = roomB.center.y;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal corridor is dominant
+      entranceX = dx > 0 ? roomB.x - 1 : roomB.x + roomB.width;
+      entranceY = roomB.center.y;
+    } else {
+      // Vertical corridor is dominant
+      entranceX = roomB.center.x;
+      entranceY = dy > 0 ? roomB.y - 1 : roomB.y + roomB.height;
+    }
+    
+    // Add arch at exit point from roomA (in the object layer)
+    if (!dungeon.layers[1]) {
+      dungeon.layers[1] = [];
+    }
+    
+    // Check if the exit position is valid (not outside map or overlapping something important)
+    if (exitX > 0 && exitX < dungeon.width - 1 && exitY > 0 && exitY < dungeon.height - 1) {
+      dungeon.layers[1].push({
+        x: exitX,
+        y: exitY,
+        itemId: 71 // Stone arch
+      });
+    }
+    
+    // Add arch at entrance point to roomB (in the object layer)
+    if (entranceX > 0 && entranceX < dungeon.width - 1 && entranceY > 0 && entranceY < dungeon.height - 1) {
+      dungeon.layers[1].push({
+        x: entranceX,
+        y: entranceY,
+        itemId: 71 // Stone arch
+      });
+    }
   }
 };
 
@@ -543,6 +715,9 @@ function init() {
           
           // Add test items around the player
           placeTestItems();
+          
+          // Initialize minimap
+          initMinimap();
           
           // Start game loop
           gameLoop();
@@ -721,6 +896,9 @@ function setupEventListeners() {
       case 'i': // 'i' key to toggle inventory
         toggleInventory();
         break;
+      case 'm': // 'm' key to toggle minimap
+        toggleMinimap();
+        break;
       case ' ': // Space bar to pick up items or interact with dungeon entrance
         if (isAtDungeonEntrance()) {
           showDungeonPrompt();
@@ -740,6 +918,14 @@ function setupEventListeners() {
       case '4':
         const slotIndex = parseInt(e.key) - 1;
         handleInventorySlotClick(slotIndex);
+        break;
+      case '+': // Zoom in minimap
+      case '=': // Alternative for zoom in
+        zoomMinimap(0.1);
+        break;
+      case '-': // Zoom out minimap
+      case '_': // Alternative for zoom out
+        zoomMinimap(-0.1);
         break;
     }
   });
@@ -792,6 +978,36 @@ function setupEventListeners() {
   if (toggleInventoryBtn) {
     toggleInventoryBtn.addEventListener('click', toggleInventory);
   }
+  
+  // Minimap toggle button
+  const toggleMinimapBtn = document.getElementById('toggleMinimapBtn');
+  if (toggleMinimapBtn) {
+    toggleMinimapBtn.addEventListener('click', toggleMinimap);
+  }
+  
+  // Minimap zoom buttons
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => zoomMinimap(0.1));
+  }
+  
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => zoomMinimap(-0.1));
+  }
+  
+  // Minimap close button
+  const closeMinimapBtn = document.getElementById('closeMinimapBtn');
+  if (closeMinimapBtn) {
+    closeMinimapBtn.addEventListener('click', () => {
+      const minimapWindow = document.querySelector('.minimap-window');
+      if (minimapWindow) {
+        minimapWindow.style.display = 'none';
+        addChatMessage('Minimap closed', 'game');
+      }
+    });
+  }
 }
 
 // Toggle inventory visibility
@@ -808,9 +1024,9 @@ function toggleInventory() {
       inventoryWindow.style.display = 'block';
       
       // Add bounce animation
-      inventoryWindow.classList.add('inventory-bounce');
+      inventoryWindow.classList.add('window-bounce');
       setTimeout(() => {
-        inventoryWindow.classList.remove('inventory-bounce');
+        inventoryWindow.classList.remove('window-bounce');
       }, 300);
       
       // Ensure it's positioned correctly if it's the first time opening
@@ -1362,6 +1578,14 @@ function gameLoop(timestamp) {
   
   // Update stats display
   updateStatsDisplay();
+  
+  // Update minimap occasionally (not every frame)
+  if (timestamp % 100 < 20) {
+    const minimapWindow = document.querySelector('.minimap-window');
+    if (minimapWindow && minimapWindow.style.display !== 'none') {
+      renderMinimap();
+    }
+  }
   
   // Update equipment display occasionally (not needed every frame)
   if (timestamp % 1000 < 20) {
@@ -2153,8 +2377,8 @@ function showDungeonPrompt() {
 
 // Function to enter the dungeon
 function enterDungeon() {
-  // Generate the dungeon
-  const dungeon = dungeonGenerator.generateDungeon(100, 3, 9);
+  // Generate the dungeon (level 1 for initial entrance)
+  const dungeon = dungeonGenerator.generateDungeon(1, 100);
   
   // Store the player's current sector and position for when they exit
   gameState.previousSector = {
@@ -2184,7 +2408,7 @@ function enterDungeon() {
   
   // Notify player
   addChatMessage(`You have entered ${dungeon.name}.`, 'server');
-  addChatMessage(`This dungeon has ${dungeon.roomCount} rooms. Find the exit stairs to proceed deeper.`, 'server');
+  addChatMessage(`You are on dungeon level ${dungeon.level}. Find the down stairs to proceed deeper.`, 'server');
 }
 
 // Function to exit the dungeon (called when player uses stairs to leave)
@@ -2241,8 +2465,8 @@ function goToDeeperDungeonLevel() {
   
   // Generate a new, harder dungeon level
   const currentLevel = gameState.currentDungeon.level || 1;
-  const newDungeon = dungeonGenerator.generateDungeon(100, 3, 9);
-  newDungeon.level = currentLevel + 1;
+  const newLevel = currentLevel + 1;
+  const newDungeon = dungeonGenerator.generateDungeon(newLevel, 100);
   newDungeon.name = `${gameState.player.name}'s Dungeon - Level ${newDungeon.level}`;
   
   // Set the current dungeon
@@ -2263,7 +2487,7 @@ function goToDeeperDungeonLevel() {
   
   // Notify player
   addChatMessage(`You have descended to dungeon level ${newDungeon.level}.`, 'server');
-  addChatMessage(`This level has ${newDungeon.roomCount} rooms and ${newDungeon.monsters ? newDungeon.monsters.length : 0} monsters.`, 'server');
+  addChatMessage(`The danger increases as you delve deeper.`, 'server');
   addChatMessage('Be careful, monsters are stronger here!', 'server');
 }
 
@@ -2341,6 +2565,355 @@ function placeDungeonEntrance() {
   }
   
   console.log('Dungeon entrance placed at position (12,5)');
+}
+
+// Initialize Minimap
+function initMinimap() {
+  // Get minimap canvas and context
+  const minimapCanvas = document.getElementById('minimapCanvas');
+  const minimapCtx = minimapCanvas.getContext('2d');
+  
+  // Store canvas and context in gameState
+  gameState.minimap.canvas = minimapCanvas;
+  gameState.minimap.ctx = minimapCtx;
+  
+  // Set initial size
+  resizeMinimap();
+  
+  // Setup draggable minimap
+  setupDraggableMinimap();
+}
+
+// Toggle minimap visibility
+function toggleMinimap() {
+  const minimapWindow = document.querySelector('.minimap-window');
+  if (minimapWindow) {
+    // Get current display state
+    const currentDisplay = minimapWindow.style.display === 'none' ? 'none' : 
+                          (minimapWindow.style.display === '' ? 'none' : minimapWindow.style.display);
+    
+    // Toggle visibility
+    if (currentDisplay === 'none') {
+      // Show minimap
+      minimapWindow.style.display = 'block';
+      
+      // Add bounce animation
+      minimapWindow.classList.add('window-bounce');
+      setTimeout(() => {
+        minimapWindow.classList.remove('window-bounce');
+      }, 300);
+      
+      // Ensure it's positioned correctly if it's the first time opening
+      if (!minimapWindow.style.left) {
+        // Position in the top-left corner of the game window
+        const gameWindow = document.querySelector('.game-window');
+        if (gameWindow) {
+          const gameRect = gameWindow.getBoundingClientRect();
+          
+          minimapWindow.style.left = `${gameRect.left + 20}px`;
+          minimapWindow.style.top = `${gameRect.top + 60}px`;
+        }
+      }
+      
+      // Update minimap
+      renderMinimap();
+      
+      addChatMessage('Minimap opened (Press M to toggle, +/- to zoom)', 'game');
+    } else {
+      minimapWindow.style.display = 'none';
+      addChatMessage('Minimap closed', 'game');
+    }
+  }
+}
+
+// Resize minimap canvas
+function resizeMinimap() {
+  if (!gameState.minimap.canvas || !gameState.currentSector) return;
+  
+  const container = document.querySelector('.minimap-canvas-container');
+  if (!container) return;
+  
+  // Set minimap canvas dimensions based on container size
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  
+  gameState.minimap.canvas.width = containerWidth;
+  gameState.minimap.canvas.height = containerHeight;
+  
+  // Render minimap with new dimensions
+  renderMinimap();
+}
+
+// Render minimap
+function renderMinimap() {
+  if (!gameState.minimap.canvas || !gameState.minimap.ctx || !gameState.currentSector) return;
+  
+  const { canvas, ctx, zoom, size, offset } = gameState.minimap;
+  const tileSize = Math.max(2, size * zoom); // Minimum 2 pixels per tile
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Calculate center of the minimap
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  
+  // Calculate draw offset
+  const drawOffsetX = centerX - (gameState.player.x * tileSize) + offset.x;
+  const drawOffsetY = centerY - (gameState.player.y * tileSize) + offset.y;
+  
+  // Define colors for different tile types - simplified color scheme as requested
+  const colors = {
+    blocking: '#FF0000',    // Red for blocking items
+    walkable: '#555555',    // Gray for walkable tiles
+    stairs: '#FFCC00',      // Gold for stairs
+    unknown: '#111111'      // Almost black for unknown
+  };
+  
+  // Draw map tiles
+  for (let layerIndex = 0; layerIndex < gameState.currentSector.layers.length; layerIndex++) {
+    const layer = gameState.currentSector.layers[layerIndex];
+    
+    if (!layer) continue;
+    
+    for (const tile of layer) {
+      // Get tile position on minimap
+      const tileX = drawOffsetX + (tile.x * tileSize);
+      const tileY = drawOffsetY + (tile.y * tileSize);
+      
+      // Skip tiles outside of visible area (with a small buffer)
+      if (tileX < -tileSize || tileY < -tileSize || 
+          tileX > canvas.width + tileSize || tileY > canvas.height + tileSize) {
+        continue;
+      }
+      
+      // Get item data
+      const item = gameState.items.find(item => item.id === tile.itemId);
+      if (!item) continue;
+      
+      // Determine tile color based on properties
+      let tileColor = colors.unknown;
+      
+      if (item.properties) {
+        if (item.properties.blocking) {
+          tileColor = colors.blocking;
+        } else if (item.properties.walkable) {
+          tileColor = colors.walkable;
+        }
+        
+        // Special color for stairs
+        if (item.id === 12 || item.id === 13 || item.name?.toLowerCase().includes('stair')) {
+          tileColor = colors.stairs;
+        }
+      }
+      
+      // Draw the tile
+      ctx.fillStyle = tileColor;
+      ctx.fillRect(tileX, tileY, tileSize, tileSize);
+    }
+  }
+  
+  // Draw player position (bright red dot)
+  const playerX = drawOffsetX + (gameState.player.x * tileSize);
+  const playerY = drawOffsetY + (gameState.player.y * tileSize);
+  
+  // Draw player as a circle
+  ctx.fillStyle = '#00FF00'; // Bright green for better visibility
+  ctx.beginPath();
+  ctx.arc(
+    playerX + tileSize / 2, 
+    playerY + tileSize / 2, 
+    Math.max(2, tileSize / 2), 
+    0, 
+    Math.PI * 2
+  );
+  ctx.fill();
+  
+  // Draw player view area outline (viewport)
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    drawOffsetX + (gameState.viewport.x * tileSize),
+    drawOffsetY + (gameState.viewport.y * tileSize),
+    gameState.viewport.width * tileSize,
+    gameState.viewport.height * tileSize
+  );
+  
+  // Draw coordinates as text
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '10px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(
+    `Pos: (${gameState.player.x}, ${gameState.player.y})`, 
+    5, 
+    canvas.height - 5
+  );
+  
+  // If in dungeon, show dungeon level
+  if (gameState.inDungeon && gameState.currentDungeon) {
+    ctx.fillText(
+      `Dungeon Level: ${gameState.currentDungeon.level}`,
+      5,
+      canvas.height - 20
+    );
+  }
+}
+
+// Zoom minimap
+function zoomMinimap(zoomDelta) {
+  // Adjust zoom level
+  gameState.minimap.zoom = Math.max(0.2, Math.min(2, gameState.minimap.zoom + zoomDelta));
+  
+  // Re-render minimap with new zoom level
+  renderMinimap();
+  
+  // Add notification for extreme zoom levels
+  if (gameState.minimap.zoom <= 0.2 && zoomDelta < 0) {
+    addChatMessage('Minimap: Maximum zoom out reached', 'game');
+  } else if (gameState.minimap.zoom >= 2 && zoomDelta > 0) {
+    addChatMessage('Minimap: Maximum zoom in reached', 'game');
+  }
+}
+
+// Setup draggable minimap
+function setupDraggableMinimap() {
+  const minimapWindow = document.querySelector('.minimap-window');
+  const minimapHeader = document.getElementById('minimapHeader');
+  const minimapCanvas = document.getElementById('minimapCanvas');
+  const gameWindow = document.querySelector('.game-window');
+  
+  if (!minimapWindow || !minimapHeader || !minimapCanvas || !gameWindow) return;
+  
+  // Variables for window dragging
+  let isWindowDragging = false;
+  let windowDragOffsetX = 0;
+  let windowDragOffsetY = 0;
+  
+  // Variables for map dragging (panning)
+  let isMapDragging = false;
+  let mapDragStartX = 0;
+  let mapDragStartY = 0;
+  
+  // Handle window dragging (by header)
+  minimapHeader.addEventListener('mousedown', (e) => {
+    // Only allow dragging from the header, not the close button
+    if (e.target.closest('.close-btn')) return;
+    
+    isWindowDragging = true;
+    
+    // Add dragging classes for visual feedback
+    minimapWindow.classList.add('dragging');
+    minimapHeader.classList.add('dragging');
+    
+    // Calculate the offset of the mouse pointer from the window's edges
+    const rect = minimapWindow.getBoundingClientRect();
+    windowDragOffsetX = e.clientX - rect.left;
+    windowDragOffsetY = e.clientY - rect.top;
+    
+    // Change cursor while dragging
+    document.body.style.cursor = 'move';
+    
+    // Prevent text selection during drag
+    e.preventDefault();
+  });
+  
+  // Handle map dragging/panning (by canvas)
+  minimapCanvas.addEventListener('mousedown', (e) => {
+    // Ensure this isn't part of a window drag
+    if (isWindowDragging) return;
+    
+    isMapDragging = true;
+    
+    // Record starting position
+    mapDragStartX = e.clientX;
+    mapDragStartY = e.clientY;
+    
+    // Change cursor
+    minimapCanvas.style.cursor = 'grabbing';
+    
+    // Prevent default behavior
+    e.preventDefault();
+  });
+  
+  // Handle mousemove event
+  document.addEventListener('mousemove', (e) => {
+    // Handle window dragging
+    if (isWindowDragging) {
+      // Get game window bounds
+      const gameRect = gameWindow.getBoundingClientRect();
+      const mapRect = minimapWindow.getBoundingClientRect();
+      
+      // Calculate new position
+      let newLeft = e.clientX - windowDragOffsetX;
+      let newTop = e.clientY - windowDragOffsetY;
+      
+      // Constrain to game window bounds with a small margin
+      const margin = 10;
+      
+      // Left boundary check
+      newLeft = Math.max(newLeft, gameRect.left + margin);
+      
+      // Right boundary check (make sure at least 50px of the window is visible)
+      const maxLeft = gameRect.right - Math.min(50, mapRect.width) - margin;
+      newLeft = Math.min(newLeft, maxLeft);
+      
+      // Top boundary check
+      newTop = Math.max(newTop, gameRect.top + margin);
+      
+      // Bottom boundary check (make sure at least 50px of the window is visible)
+      const maxTop = gameRect.bottom - Math.min(50, mapRect.height) - margin;
+      newTop = Math.min(newTop, maxTop);
+      
+      // Apply new position
+      minimapWindow.style.left = `${newLeft}px`;
+      minimapWindow.style.top = `${newTop}px`;
+    }
+    
+    // Handle map dragging (panning)
+    else if (isMapDragging) {
+      // Calculate movement delta
+      const dx = e.clientX - mapDragStartX;
+      const dy = e.clientY - mapDragStartY;
+      
+      // Update map offset
+      gameState.minimap.offset.x += dx;
+      gameState.minimap.offset.y += dy;
+      
+      // Update drag start position
+      mapDragStartX = e.clientX;
+      mapDragStartY = e.clientY;
+      
+      // Re-render minimap
+      renderMinimap();
+    }
+  });
+  
+  // Handle mouseup event
+  document.addEventListener('mouseup', () => {
+    // Reset window dragging
+    if (isWindowDragging) {
+      minimapWindow.classList.remove('dragging');
+      minimapHeader.classList.remove('dragging');
+      isWindowDragging = false;
+      document.body.style.cursor = 'default';
+    }
+    
+    // Reset map dragging
+    if (isMapDragging) {
+      isMapDragging = false;
+      minimapCanvas.style.cursor = 'grab';
+    }
+  });
+  
+  // Set initial cursor for map
+  minimapCanvas.style.cursor = 'grab';
+  
+  // Add wheel event for zooming
+  minimapCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomAmount = e.deltaY > 0 ? -0.1 : 0.1;
+    zoomMinimap(zoomAmount);
+  });
 }
 
 // Start the game when the page loads

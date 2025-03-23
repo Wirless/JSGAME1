@@ -1279,5 +1279,20 @@
     "attack": 5,
     "defense": 5,
     "slot": "SLOT_LEFTHAND"
+  },
+  {
+    "id": 71,
+    "name": "arch",
+    "properties": {
+      "walkable": true,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "skillType": "none",
+    "sprite": {
+      "x": 34,
+      "y": 15
+    }
   }
 ]
