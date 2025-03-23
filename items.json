@@ -1279,5 +1279,65 @@
     "attack": 5,
     "defense": 5,
     "slot": "SLOT_LEFTHAND"
+  },
+  {
+    "id": 71,
+    "name": "chest",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": true,
+      "pickupable": false
+    },
+    "skillType": "none",
+    "sprite": {
+      "x": 44,
+      "y": 45
+    }
+  },
+  {
+    "id": 72,
+    "name": "opened chest",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": false
+    },
+    "skillType": "none",
+    "sprite": {
+      "x": 45,
+      "y": 45
+    }
+  },
+  {
+    "id": 73,
+    "name": "golden key",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": false,
+      "pickupable": true
+    },
+    "skillType": "none",
+    "sprite": {
+      "x": 54,
+      "y": 45
+    }
+  },
+  {
+    "id": 74,
+    "name": "locked chest",
+    "properties": {
+      "walkable": false,
+      "blocking": false,
+      "useable": true,
+      "pickupable": false
+    },
+    "skillType": "none",
+    "sprite": {
+      "x": 43,
+      "y": 45
+    }
   }
 ]

@@ -42,17 +42,29 @@ const gameState = {
     moveDelay: 1000,      // Milliseconds between moves
     lastMoveTime: 0,     // Last time the player moved
     stats: {
-      strength: 10,
-      defense: 5,
-      dexterity: 8,
-      agility: 7,
-      intelligence: 6,
-      luck: 5
+      strength: 1,
+      defense: 1,
+      dexterity: 1,
+      agility: 1,
+      intelligence: 1,
+      luck: 1
     },
     skills: {
-      melee: 10,
-      distance: 5,
-      magic: 8
+      melee: 1,
+      distance: 1,
+      magic: 1
+    },
+    // New inventory property
+    equipment: {
+      SLOT_NECKLACE: null,
+      SLOT_HEAD: null, 
+      SLOT_BACKPACK: null,
+      SLOT_LEFTHAND: null,
+      SLOT_ARMOR: null,
+      SLOT_RIGHTHAND: null,
+      SLOT_LEFTRING: null,
+      SLOT_WINGS: null,
+      SLOT_RIGHTRING: null
     }
   },
   tileSize: 32,
@@ -130,6 +142,9 @@ function init() {
           
           // Start game loop
           gameLoop();
+          
+          // Initialize equipment slots display
+          initInventorySystem();
           
           // Add chat messages
           addChatMessage('Welcome to MSRE RPG!', 'server');
@@ -277,8 +292,8 @@ function constrainViewport() {
 
 // Set up event listeners
 function setupEventListeners() {
-  // Keyboard controls
-  window.addEventListener('keydown', (e) => {
+  // Keyboard event listeners
+  document.addEventListener('keydown', (e) => {
     switch (e.key) {
       case 'ArrowUp':
       case 'w':
@@ -296,17 +311,13 @@ function setupEventListeners() {
       case 'd':
         gameState.keyboard.right = true;
         break;
-      case 'Enter':
-        if (document.activeElement === chatInput) {
-          sendChatMessage();
-        } else {
-          chatInput.focus();
-        }
+      case 'i': // 'i' key to toggle inventory
+        toggleInventory();
         break;
     }
   });
   
-  window.addEventListener('keyup', (e) => {
+  document.addEventListener('keyup', (e) => {
     switch (e.key) {
       case 'ArrowUp':
       case 'w':
@@ -327,8 +338,13 @@ function setupEventListeners() {
     }
   });
   
-  // Chat controls
+  // Chat input
   sendButton.addEventListener('click', sendChatMessage);
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      sendChatMessage();
+    }
+  });
   
   // Chat tabs
   chatTabs.forEach(tab => {
@@ -339,10 +355,61 @@ function setupEventListeners() {
       // Add active class to clicked tab
       tab.classList.add('active');
       
-      // Update active chat channel
-      gameState.activeChat = tab.dataset.channel;
+      // Set active chat channel
+      gameState.activeChat = tab.getAttribute('data-channel');
     });
   });
+  
+  // Inventory toggle button
+  const toggleInventoryBtn = document.getElementById('toggleInventoryBtn');
+  if (toggleInventoryBtn) {
+    toggleInventoryBtn.addEventListener('click', toggleInventory);
+  }
+}
+
+// Toggle inventory visibility
+function toggleInventory() {
+  const inventoryWindow = document.querySelector('.inventory-window');
+  if (inventoryWindow) {
+    // Get current display state (accounting for empty style.display)
+    const currentDisplay = inventoryWindow.style.display === 'none' ? 'none' : 
+                          (inventoryWindow.style.display === '' ? 'block' : inventoryWindow.style.display);
+    
+    // Toggle visibility based on current state
+    if (currentDisplay === 'none') {
+      // Show inventory
+      inventoryWindow.style.display = 'block';
+      
+      // Add bounce animation
+      inventoryWindow.classList.add('inventory-bounce');
+      setTimeout(() => {
+        inventoryWindow.classList.remove('inventory-bounce');
+      }, 300);
+      
+      // Ensure it's positioned correctly if it's the first time opening
+      if (!inventoryWindow.style.left) {
+        // Center in the game window
+        const gameWindow = document.querySelector('.game-window');
+        if (gameWindow) {
+          const gameRect = gameWindow.getBoundingClientRect();
+          const invWidth = inventoryWindow.offsetWidth;
+          const invHeight = inventoryWindow.offsetHeight;
+          
+          const centerX = gameRect.left + (gameRect.width / 2) - (invWidth / 2);
+          const centerY = gameRect.top + (gameRect.height / 2) - (invHeight / 2);
+          
+          inventoryWindow.style.left = `${centerX}px`;
+          inventoryWindow.style.top = `${centerY}px`;
+          inventoryWindow.style.right = 'auto';
+        }
+      }
+      
+      addChatMessage('Inventory opened', 'game');
+    } else {
+      inventoryWindow.style.display = 'none';
+      addChatMessage('Inventory closed', 'game');
+    }
+  }
 }
 
 // Handle player movement based on keyboard input
@@ -632,14 +699,31 @@ function renderMap() {
 function renderPlayer() {
   // Don't render if player data or tileset image isn't loaded
   if (!gameState.player || !tilesetImage.complete || !gameState.outfits) return;
-  
+
   // Calculate screen position (player should be at center of screen)
   const playerScreenX = (gameState.player.x - gameState.viewport.x) * gameState.tileSize;
   const playerScreenY = (gameState.player.y - gameState.viewport.y) * gameState.tileSize;
-  
+
   // Find the player's outfit
   const outfit = gameState.outfits.find(outfit => outfit.id === gameState.player.outfit);
   if (!outfit) return;
+  
+  // Determine direction offset based on player direction
+  let directionOffset = 0;
+  switch (gameState.player.direction) {
+    case 'north':
+      directionOffset = 3 * 32; // 3rd sprite in row
+      break;
+    case 'east':
+      directionOffset = 2 * 32; // 2nd sprite in row
+      break;
+    case 'south':
+      directionOffset = 0; // 1st sprite in row
+      break;
+    case 'west':
+      directionOffset = 1 * 32; // 4th sprite in row
+      break;
+  }
   
   // Draw the player
   if (outfit.type === 'full') {
@@ -659,8 +743,10 @@ function renderPlayer() {
     
     // Draw addons if they exist
     if (outfit.addons) {
-      // Draw armor
-      if (outfit.addons.armor) {
+      // Use the equipped items to determine which addons to draw
+      
+      // Armor addon
+      if (outfit.addons.armor && gameState.player.equipment.SLOT_ARMOR) {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.armor.x * 32, outfit.addons.armor.y * 32, 32, 32,
@@ -668,8 +754,8 @@ function renderPlayer() {
         );
       }
       
-      // Draw weapons/items in hands
-      if (outfit.addons.leftHand) {
+      // Left hand addon
+      if (outfit.addons.leftHand && gameState.player.equipment.SLOT_LEFTHAND) {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.leftHand.x * 32, outfit.addons.leftHand.y * 32, 32, 32,
@@ -677,10 +763,29 @@ function renderPlayer() {
         );
       }
       
-      if (outfit.addons.rightHand) {
+      // Right hand addon
+      if (outfit.addons.rightHand && gameState.player.equipment.SLOT_RIGHTHAND) {
         ctx.drawImage(
           tilesetImage,
           outfit.addons.rightHand.x * 32, outfit.addons.rightHand.y * 32, 32, 32,
+          playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+      
+      // Wings addon
+      if (outfit.addons.wings && gameState.player.equipment.SLOT_WINGS) {
+        ctx.drawImage(
+          tilesetImage,
+          outfit.addons.wings.x * 32, outfit.addons.wings.y * 32, 32, 32,
+          playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
+        );
+      }
+      
+      // Head addon
+      if (outfit.addons.head && gameState.player.equipment.SLOT_HEAD) {
+        ctx.drawImage(
+          tilesetImage,
+          outfit.addons.head.x * 32, outfit.addons.head.y * 32, 32, 32,
           playerScreenX, playerScreenY, gameState.tileSize, gameState.tileSize
         );
       }
@@ -773,19 +878,25 @@ function gameLoop(timestamp) {
   if (!gameState.lastFrameTime) {
     gameState.lastFrameTime = timestamp;
   }
+  
   gameState.deltaTime = timestamp - gameState.lastFrameTime;
   gameState.lastFrameTime = timestamp;
   
-  // Handle input
+  // Process player movement
   handlePlayerMovement();
+  
+  // Render the game
+  render();
   
   // Update stats display
   updateStatsDisplay();
   
-  // Render game
-  render();
+  // Update equipment display occasionally (not needed every frame)
+  if (timestamp % 1000 < 20) {
+    updateAllEquipmentSlots();
+  }
   
-  // Schedule next frame
+  // Request next frame
   requestAnimationFrame(gameLoop);
 }
 
@@ -803,6 +914,286 @@ function findItemAtTile(x, y) {
   }
   
   return null;
+}
+
+// Initialize inventory system
+function initInventorySystem() {
+  // Get all equipment slots
+  const equipmentSlots = document.querySelectorAll('.equipment-slot');
+  
+  // Add click event listener to each slot
+  equipmentSlots.forEach(slot => {
+    slot.addEventListener('click', () => {
+      // For demo purposes, let's just equip a random item that fits in this slot
+      const slotType = slot.getAttribute('data-slot');
+      tryEquipRandomItem(slotType);
+    });
+    
+    // Initialize tooltips with default content
+    slot.querySelector('.tooltip').textContent = getSlotName(slot.getAttribute('data-slot'));
+  });
+  
+  // Make inventory visible by default
+  const inventoryWindow = document.querySelector('.inventory-window');
+  if (inventoryWindow) {
+    inventoryWindow.style.display = 'block';
+  }
+  
+  // Setup draggable inventory
+  setupDraggableInventory();
+  
+  // Update equipment stats display
+  updateEquipmentStats();
+  
+  // Show initial message about inventory
+  addChatMessage('Press I or click the Inventory button to toggle inventory', 'server');
+  addChatMessage('You can drag the inventory window by its header', 'server');
+}
+
+// Setup draggable inventory window
+function setupDraggableInventory() {
+  const inventoryWindow = document.querySelector('.inventory-window');
+  const inventoryHeader = document.getElementById('inventoryHeader');
+  const closeBtn = document.getElementById('closeInventoryBtn');
+  const gameWindow = document.querySelector('.game-window');
+  
+  if (!inventoryWindow || !inventoryHeader || !gameWindow) return;
+  
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  
+  // Close button event
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      inventoryWindow.style.display = 'none';
+      addChatMessage('Inventory closed', 'game');
+    });
+  }
+  
+  // Handle mousedown event on header to start dragging
+  inventoryHeader.addEventListener('mousedown', (e) => {
+    // Only allow dragging from the header, not the close button
+    if (e.target.closest('.close-btn')) return;
+    
+    isDragging = true;
+    
+    // Add dragging classes for visual feedback
+    inventoryWindow.classList.add('inventory-dragging');
+    inventoryHeader.classList.add('dragging');
+    
+    // Calculate the offset of the mouse pointer from the inventory window's edges
+    const rect = inventoryWindow.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    
+    // Change cursor while dragging
+    document.body.style.cursor = 'move';
+    
+    // Prevent text selection during drag
+    e.preventDefault();
+  });
+  
+  // Handle mousemove event to perform the dragging
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    // Get game window bounds
+    const gameRect = gameWindow.getBoundingClientRect();
+    const invRect = inventoryWindow.getBoundingClientRect();
+    
+    // Calculate new position
+    let newLeft = e.clientX - dragOffsetX;
+    let newTop = e.clientY - dragOffsetY;
+    
+    // Constrain to game window bounds with a small margin
+    const margin = 10;
+    
+    // Left boundary check
+    newLeft = Math.max(newLeft, gameRect.left + margin);
+    
+    // Right boundary check (make sure at least 50px of inventory is visible)
+    const maxLeft = gameRect.right - Math.min(50, invRect.width) - margin;
+    newLeft = Math.min(newLeft, maxLeft);
+    
+    // Top boundary check
+    newTop = Math.max(newTop, gameRect.top + margin);
+    
+    // Bottom boundary check (make sure at least 50px of inventory is visible)
+    const maxTop = gameRect.bottom - Math.min(50, invRect.height) - margin;
+    newTop = Math.min(newTop, maxTop);
+    
+    // Apply new position
+    inventoryWindow.style.left = `${newLeft}px`;
+    inventoryWindow.style.top = `${newTop}px`;
+    
+    // Remove default positioning
+    inventoryWindow.style.right = 'auto';
+  });
+  
+  // Handle mouseup event to stop dragging
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      // Remove dragging classes
+      inventoryWindow.classList.remove('inventory-dragging');
+      inventoryHeader.classList.remove('dragging');
+      
+      isDragging = false;
+      document.body.style.cursor = 'default';
+    }
+  });
+  
+  // Handle ESC key to close inventory
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && inventoryWindow.style.display !== 'none') {
+      inventoryWindow.style.display = 'none';
+      addChatMessage('Inventory closed', 'game');
+    }
+  });
+}
+
+// Get user-friendly name for a slot
+function getSlotName(slotType) {
+  const slotNames = {
+    'SLOT_NECKLACE': 'Necklace',
+    'SLOT_HEAD': 'Helmet',
+    'SLOT_BACKPACK': 'Backpack',
+    'SLOT_LEFTHAND': 'Left Hand',
+    'SLOT_ARMOR': 'Armor',
+    'SLOT_RIGHTHAND': 'Right Hand',
+    'SLOT_LEFTRING': 'Left Ring',
+    'SLOT_WINGS': 'Wings',
+    'SLOT_RIGHTRING': 'Right Ring'
+  };
+  
+  return slotNames[slotType] || 'Unknown Slot';
+}
+
+// Try to equip a random item (for demo purposes)
+function tryEquipRandomItem(slotType) {
+  // Find items that fit this slot
+  const compatibleItems = gameState.items.filter(item => 
+    item.slot === slotType && 
+    item.properties && 
+    item.properties.pickupable);
+  
+  if (compatibleItems.length > 0) {
+    // Choose a random item from compatible ones
+    const randomItem = compatibleItems[Math.floor(Math.random() * compatibleItems.length)];
+    
+    // Equip the item
+    equipItem(randomItem, slotType);
+    
+    // Show success message
+    addChatMessage(`You equipped ${randomItem.name}`, 'game');
+  } else {
+    // No compatible items found
+    addChatMessage(`No items found for ${getSlotName(slotType)}`, 'game');
+  }
+}
+
+// Equip an item
+function equipItem(item, slotType) {
+  // Store the item in player's equipment
+  gameState.player.equipment[slotType] = item;
+  
+  // Update the UI
+  updateEquipmentSlot(slotType, item);
+  
+  // Find player outfit and ensure it's of "both" type to support addons
+  const outfit = gameState.outfits.find(o => o.id === gameState.player.outfit);
+  
+  // If current outfit doesn't support addons, change to one that does
+  if (!outfit || outfit.type !== 'both') {
+    // Find an outfit that supports addons
+    const addonOutfit = gameState.outfits.find(o => o.type === 'both');
+    if (addonOutfit) {
+      gameState.player.outfit = addonOutfit.id;
+      addChatMessage(`Changed to outfit that supports equipment`, 'game');
+    }
+  }
+  
+  // Update player stats
+  updateEquipmentStats();
+}
+
+// Update a specific equipment slot in the UI
+function updateEquipmentSlot(slotType, item) {
+  const slotElement = document.querySelector(`.equipment-slot[data-slot="${slotType}"]`);
+  if (!slotElement) return;
+  
+  // Clear existing content
+  while (slotElement.firstChild) {
+    if (slotElement.firstChild.className === 'tooltip') {
+      break;
+    }
+    slotElement.removeChild(slotElement.firstChild);
+  }
+  
+  if (item) {
+    // Create image element for the item
+    const itemImage = document.createElement('div');
+    itemImage.style.width = '32px';
+    itemImage.style.height = '32px';
+    itemImage.style.background = `url('/tileset.png')`;
+    
+    // Use the item sprite for display in inventory
+    if (item.sprite) {
+      itemImage.style.backgroundPosition = `-${item.sprite.x * 32}px -${item.sprite.y * 32}px`;
+    } else if (item.sprites && item.sprites.length > 0) {
+      // If item has multiple sprites, use the first one
+      itemImage.style.backgroundPosition = `-${item.sprites[0].x * 32}px -${item.sprites[0].y * 32}px`;
+    }
+    
+    slotElement.prepend(itemImage);
+    
+    // Update tooltip with item info
+    const tooltip = slotElement.querySelector('.tooltip');
+    if (tooltip) {
+      tooltip.textContent = item.name;
+      
+      // Add stats info if available
+      let statsText = '';
+      if (item.attack) statsText += ` Atk:${item.attack}`;
+      if (item.defense) statsText += ` Def:${item.defense}`;
+      
+      if (statsText) {
+        tooltip.textContent += ` (${statsText.trim()})`;
+      }
+    }
+  } else {
+    // Reset tooltip to default
+    const tooltip = slotElement.querySelector('.tooltip');
+    if (tooltip) {
+      tooltip.textContent = getSlotName(slotType);
+    }
+  }
+}
+
+// Update all equipment slots in the UI
+function updateAllEquipmentSlots() {
+  // Update each slot with the currently equipped item
+  Object.entries(gameState.player.equipment).forEach(([slotType, item]) => {
+    updateEquipmentSlot(slotType, item);
+  });
+}
+
+// Calculate and update equipment stats
+function updateEquipmentStats() {
+  // Calculate total attack and defense from equipped items
+  let totalAttack = 0;
+  let totalDefense = 0;
+  
+  Object.values(gameState.player.equipment).forEach(item => {
+    if (item) {
+      if (item.attack) totalAttack += item.attack;
+      if (item.defense) totalDefense += item.defense;
+    }
+  });
+  
+  // Update UI with calculated stats
+  document.getElementById('attackStat').textContent = totalAttack;
+  document.getElementById('equipDefenseStat').textContent = totalDefense;
 }
 
 // Start the game when the page loads

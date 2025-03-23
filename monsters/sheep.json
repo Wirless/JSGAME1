@@ -1,0 +1,13 @@
+{
+  "id": 1,
+  "name": "Sheep",
+  "outfitId": 17,
+  "health": 20,
+  "maxHealth": 20,
+  "defense": 0,
+  "attack": 0,
+  "experience": 5,
+  "loot": [],
+  "behavior": "passive",
+  "description": "A peaceful sheep grazing in the fields."
+} 

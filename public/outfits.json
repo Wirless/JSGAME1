@@ -10,13 +10,17 @@
   },
   {
     "id": 2,
-    "name": "2",
+    "name": "Full Equipment Outfit",
     "type": "both",
     "baseSprite": {
       "x": 40,
       "y": 31
     },
     "addons": {
+      "head": {
+        "x": 42,
+        "y": 31
+      },
       "armor": {
         "x": 36,
         "y": 33
@@ -28,7 +32,173 @@
       "rightHand": {
         "x": 41,
         "y": 35
+      },
+      "wings": {
+        "x": 42,
+        "y": 33
       }
     }
+  },
+  {
+    "id": 3,
+    "name": "Pig",
+    "type": "full",
+    "baseSprite": {
+      "x": 3,
+      "y": 4
+    }
+  },
+  {
+    "id": 4,
+    "name": "Wolf",
+    "type": "full",
+    "baseSprite": {
+      "x": 4,
+      "y": 4
+    }
+  },
+  {
+    "id": 5,
+    "name": "demon goblin",
+    "type": "full",
+    "baseSprite": {
+      "x": 3,
+      "y": 2
+    }
+  },
+  {
+    "id": 6,
+    "name": "giant",
+    "type": "full",
+    "baseSprite": {
+      "x": 1,
+      "y": 2
+    }
+  },
+  {
+    "id": 7,
+    "name": "slime",
+    "type": "full",
+    "baseSprite": {
+      "x": 9,
+      "y": 1
+    }
+  },
+  {
+    "id": 8,
+    "name": "gator",
+    "type": "full",
+    "baseSprite": {
+      "x": 14,
+      "y": 3
+    }
+  },
+  {
+    "id": 9,
+    "name": "snake",
+    "type": "full",
+    "baseSprite": {
+      "x": 17,
+      "y": 3
+    }
+  },
+  {
+    "id": 10,
+    "name": "wasp",
+    "type": "full",
+    "baseSprite": {
+      "x": 27,
+      "y": 3
+    }
+  },
+  {
+    "id": 11,
+    "name": "toad",
+    "type": "full",
+    "baseSprite": {
+      "x": 23,
+      "y": 3
+    }
+  },
+  {
+    "id": 12,
+    "name": "demonic sheep",
+    "type": "full",
+    "baseSprite": {
+      "x": 36,
+      "y": 3
+    }
+  },
+  {
+    "id": 13,
+    "name": "elf archer",
+    "type": "full",
+    "baseSprite": {
+      "x": 31,
+      "y": 1
+    }
+  },
+  {
+    "id": 14,
+    "name": "Deadly wasp",
+    "type": "full",
+    "baseSprite": {
+      "x": 54,
+      "y": 4
+    }
+  },
+  {
+    "id": 15,
+    "name": "rat",
+    "type": "full",
+    "baseSprite": {
+      "x": 63,
+      "y": 3
+    }
+  },
+  {
+    "id": 16,
+    "name": "mutated rat",
+    "type": "full",
+    "baseSprite": {
+      "x": 62,
+      "y": 3
+    }
+  },
+  {
+    "id": 17,
+    "name": "sheep",
+    "type": "full",
+    "baseSprite": {
+      "x": 53,
+      "y": 4
+    }
+  },
+  {
+    "id": 18,
+    "name": "centipede",
+    "type": "full",
+    "baseSprite": {
+      "x": 52,
+      "y": 4
+    }
+  },
+  {
+    "id": 19,
+    "name": "spider",
+    "type": "full",
+    "baseSprite": {
+      "x": 51,
+      "y": 4
+    }
+  },
+  {
+    "id": 20,
+    "name": "wilk z wolynia",
+    "type": "full",
+    "baseSprite": {
+      "x": 47,
+      "y": 4
+    }
   }
-] 
+]

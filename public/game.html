@@ -126,6 +126,118 @@
       width: 0%;
     }
     
+    /* Inventory styles */
+    .inventory-window {
+      position: absolute;
+      top: 50px;
+      right: 50px;
+      width: 200px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 5px;
+      padding: 10px;
+      z-index: 100;
+      cursor: default;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      border: 1px solid #3498db;
+    }
+    
+    .inventory-header {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #3498db;
+      padding-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+    
+    .drag-handle {
+      flex-grow: 1;
+      user-select: none;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: #ffffff;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 5px;
+    }
+    
+    .close-btn:hover {
+      color: #e74c3c;
+    }
+    
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    
+    .equipment-slot {
+      width: 40px;
+      height: 40px;
+      background-color: #34495e;
+      border: 1px solid #3498db;
+      border-radius: 3px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    
+    .equipment-slot img {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    
+    .equipment-slot .tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 5px;
+      border-radius: 3px;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      display: none;
+      z-index: 101;
+    }
+    
+    .equipment-slot:hover .tooltip {
+      display: block;
+    }
+    
+    .wings-slot {
+      grid-column: 2;
+      grid-row: 3;
+    }
+    
+    /* Inventory toggle button */
+    .inventory-toggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 5px 10px;
+      cursor: pointer;
+      z-index: 101;
+    }
+    
+    .inventory-toggle:hover {
+      background-color: #2980b9;
+    }
+    
     /* Chat message styling */
     .chat-message {
       margin-bottom: 3px;
@@ -139,12 +251,99 @@
     .chat-message.trade {
       color: #2ecc71;
     }
+    
+    /* Inventory animations */
+    @keyframes inventoryBounce {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .inventory-bounce {
+      animation: inventoryBounce 0.3s ease-out forwards;
+    }
+    
+    .inventory-window {
+      transition: box-shadow 0.3s ease;
+    }
+    
+    .inventory-window:hover {
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .inventory-dragging {
+      box-shadow: 0 8px 16px rgba(52, 152, 219, 0.6) !important;
+      opacity: 0.9;
+    }
+    
+    .inventory-header.dragging {
+      background-color: rgba(52, 152, 219, 0.3);
+      cursor: grabbing;
+    }
   </style>
 </head>
 <body>
   <div class="game-container">
     <div class="game-window">
       <canvas id="gameCanvas"></canvas>
+      
+      <!-- Toggle button for inventory -->
+      <button id="toggleInventoryBtn" class="inventory-toggle">
+        Inventory
+      </button>
+      
+      <!-- Inventory Window -->
+      <div class="inventory-window">
+        <div class="inventory-header" id="inventoryHeader">
+          <div class="drag-handle">Equipment</div>
+          <button class="close-btn" id="closeInventoryBtn">×</button>
+        </div>
+        <div class="equipment-grid">
+          <!-- Row 1: Necklace, Helmet, Backpack -->
+          <div class="equipment-slot" data-slot="SLOT_NECKLACE">
+            <div class="tooltip">Necklace</div>
+          </div>
+          <div class="equipment-slot" data-slot="SLOT_HEAD">
+            <div class="tooltip">Helmet</div>
+          </div>
+          <div class="equipment-slot" data-slot="SLOT_BACKPACK">
+            <div class="tooltip">Backpack</div>
+          </div>
+          
+          <!-- Row 2: Left Hand, Armor, Right Hand -->
+          <div class="equipment-slot" data-slot="SLOT_LEFTHAND">
+            <div class="tooltip">Left Hand</div>
+          </div>
+          <div class="equipment-slot" data-slot="SLOT_ARMOR">
+            <div class="tooltip">Armor</div>
+          </div>
+          <div class="equipment-slot" data-slot="SLOT_RIGHTHAND">
+            <div class="tooltip">Right Hand</div>
+          </div>
+          
+          <!-- Row 3: Gloves, Wings, Rings -->
+          <div class="equipment-slot" data-slot="SLOT_LEFTRING">
+            <div class="tooltip">Left Ring</div>
+          </div>
+          <div class="equipment-slot wings-slot" data-slot="SLOT_WINGS">
+            <div class="tooltip">Wings</div>
+          </div>
+          <div class="equipment-slot" data-slot="SLOT_RIGHTRING">
+            <div class="tooltip">Right Ring</div>
+          </div>
+        </div>
+        
+        <div class="inventory-stats">
+          <div class="stat-item">
+            <span>Attack:</span>
+            <span id="attackStat">0</span>
+          </div>
+          <div class="stat-item">
+            <span>Defense:</span>
+            <span id="equipDefenseStat">0</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="stats-window">
       <div class="stats-header">Character Stats</div>
