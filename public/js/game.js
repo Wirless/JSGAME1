@@ -27,6 +27,8 @@ const gameState = {
   sectors: new Map(),    // Cache of loaded sectors (Map of sector filename -> sector data)
   items: null,
   outfits: null,
+  inDungeon: false,      // Flag to indicate if player is in a dungeon
+  currentDungeon: null,  // Stores the current dungeon data
   player: {
     x: 0,
     y: 0,
@@ -92,6 +94,399 @@ const gameState = {
 const tilesetImage = new Image();
 tilesetImage.src = '/tileset.png';
 
+// Dungeon Generator Module
+const dungeonGenerator = {
+  // Dungeon state storage
+  dungeons: new Map(), // Map of player name -> dungeonData
+  
+  // Generate a new dungeon for the player
+  generateDungeon: function(size = 100, roomSizeMin = 3, roomSizeMax = 9) {
+    // Create the basic dungeon structure with rooms and corridors
+    const dungeon = this._generateBasicDungeon(size, roomSizeMin, roomSizeMax);
+    
+    // Populate with monsters and loot
+    this.populateDungeon(dungeon);
+    
+    // Store the dungeon and return it
+    this.dungeons.set(gameState.player.name, dungeon);
+    return dungeon;
+  },
+  
+  // Check if two rooms overlap (including buffer space)
+  checkRoomOverlap: function(roomA, roomB, buffer = 1) {
+    return !(
+      roomA.x + roomA.width + buffer < roomB.x ||
+      roomB.x + roomB.width + buffer < roomA.x ||
+      roomA.y + roomA.height + buffer < roomB.y ||
+      roomB.y + roomB.height + buffer < roomA.y
+    );
+  },
+  
+  // Create a corridor between two points
+  createCorridor: function(dungeon, x1, y1, x2, y2) {
+    // Decide randomly whether to go horizontal first or vertical first
+    const horizontalFirst = Math.random() >= 0.5;
+    
+    // Current position
+    let currentX = x1;
+    let currentY = y1;
+    
+    if (horizontalFirst) {
+      // Move horizontally first, then vertically
+      while (currentX !== x2) {
+        currentX += currentX < x2 ? 1 : -1;
+        this.setFloorTile(dungeon, currentX, currentY);
+      }
+      
+      while (currentY !== y2) {
+        currentY += currentY < y2 ? 1 : -1;
+        this.setFloorTile(dungeon, currentX, currentY);
+      }
+    } else {
+      // Move vertically first, then horizontally
+      while (currentY !== y2) {
+        currentY += currentY < y2 ? 1 : -1;
+        this.setFloorTile(dungeon, currentX, currentY);
+      }
+      
+      while (currentX !== x2) {
+        currentX += currentX < x2 ? 1 : -1;
+        this.setFloorTile(dungeon, currentX, currentY);
+      }
+    }
+  },
+  
+  // Set a tile to floor (cobble floor - itemId 27)
+  setFloorTile: function(dungeon, x, y) {
+    // Find and replace the wall tile with floor
+    const tileIndex = dungeon.layers[0].findIndex(
+      tile => tile.x === x && tile.y === y
+    );
+    
+    if (tileIndex !== -1) {
+      dungeon.layers[0][tileIndex].itemId = 27; // Cobble floor
+    } else {
+      // Add new floor tile if not found
+      dungeon.layers[0].push({
+        x,
+        y,
+        itemId: 27
+      });
+    }
+  },
+  
+  // Get player's current dungeon
+  getPlayerDungeon: function() {
+    return this.dungeons.get(gameState.player.name);
+  },
+  
+  // Serialize the dungeon for saving
+  serializeDungeon: function(dungeon) {
+    return JSON.stringify(dungeon);
+  },
+  
+  // Deserialize a dungeon from storage
+  deserializeDungeon: function(serializedDungeon) {
+    return JSON.parse(serializedDungeon);
+  },
+  
+  // Add monsters and loot to a dungeon
+  populateDungeon: function(dungeon) {
+    if (!dungeon || !dungeon.rooms || dungeon.rooms.length === 0) {
+      return dungeon;
+    }
+    
+    // Set the danger level based on dungeon level
+    const dungeonLevel = dungeon.level || 1;
+    const dangerLevel = Math.min(10, dungeonLevel); // Cap at level 10
+    
+    // Define available monster types based on danger level
+    const monsterTypes = [
+      { id: 101, name: "Rat", hp: 10, damage: 1, sprite: { x: 10, y: 30 } },
+      { id: 102, name: "Skeleton", hp: 20, damage: 3, sprite: { x: 11, y: 30 } },
+      { id: 103, name: "Zombie", hp: 30, damage: 5, sprite: { x: 12, y: 30 } },
+      { id: 104, name: "Ghoul", hp: 40, damage: 7, sprite: { x: 13, y: 30 } },
+      { id: 105, name: "Demon", hp: 60, damage: 10, sprite: { x: 14, y: 30 } }
+    ];
+    
+    // Define available loot items
+    const lootItems = [
+      { itemId: 69, chance: 0.2 }, // noob staff
+      { itemId: 70, chance: 0.2 }  // noob club
+    ];
+    
+    // Calculate number of monsters based on dungeon level
+    const monsterCount = Math.min(20, 5 + (dungeonLevel * 2));
+    
+    // Get available monster types for this level
+    const availableMonsters = monsterTypes.filter(
+      monster => monster.id <= 100 + dangerLevel
+    );
+    
+    // Create a monsters array if it doesn't exist
+    if (!dungeon.monsters) {
+      dungeon.monsters = [];
+    }
+    
+    // Create a loot array if it doesn't exist
+    if (!dungeon.loot) {
+      dungeon.loot = [];
+    }
+    
+    // Place monsters in rooms (except start room and end room)
+    const roomsForMonsters = [...dungeon.rooms]
+      .filter(room => 
+        room !== dungeon.startRoom && 
+        room !== dungeon.endRoom
+      );
+    
+    // Determine how many monsters to place per room
+    for (let i = 0; i < monsterCount; i++) {
+      // Pick a random room
+      if (roomsForMonsters.length === 0) break;
+      const roomIndex = Math.floor(Math.random() * roomsForMonsters.length);
+      const room = roomsForMonsters[roomIndex];
+      
+      // Pick a random position within the room
+      const monsterX = Math.floor(Math.random() * (room.width - 2)) + room.x + 1;
+      const monsterY = Math.floor(Math.random() * (room.height - 2)) + room.y + 1;
+      
+      // Pick a random monster type appropriate for this level
+      const monsterType = availableMonsters[
+        Math.floor(Math.random() * availableMonsters.length)
+      ];
+      
+      // Scale monster stats based on dungeon level
+      const levelMultiplier = 1 + ((dungeonLevel - 1) * 0.2); // +20% per level
+      
+      // Create monster instance
+      const monster = {
+        ...monsterType,
+        x: monsterX,
+        y: monsterY,
+        hp: Math.floor(monsterType.hp * levelMultiplier),
+        maxHp: Math.floor(monsterType.hp * levelMultiplier),
+        damage: Math.floor(monsterType.damage * levelMultiplier)
+      };
+      
+      // Add monster to dungeon
+      dungeon.monsters.push(monster);
+      
+      // Add monster to the object layer
+      if (dungeon.layers[1]) {
+        dungeon.layers[1].push({
+          x: monsterX,
+          y: monsterY,
+          itemId: monster.id,
+          isMonster: true,
+          monsterId: dungeon.monsters.length - 1 // Index of this monster in the monsters array
+        });
+      }
+    }
+    
+    // Place loot in some rooms
+    for (const room of dungeon.rooms) {
+      // Skip start and end rooms for loot
+      if (room === dungeon.startRoom || room === dungeon.endRoom) {
+        continue;
+      }
+      
+      // 30% chance per room to place loot, adjusted by dungeon level
+      const lootChance = 0.3 + (dungeonLevel * 0.05); // +5% per level
+      
+      if (Math.random() < lootChance) {
+        // Pick a random loot item
+        const lootItem = lootItems[Math.floor(Math.random() * lootItems.length)];
+        
+        // Only place if random check passes
+        if (Math.random() < lootItem.chance) {
+          // Place in random position within room
+          const lootX = Math.floor(Math.random() * (room.width - 2)) + room.x + 1;
+          const lootY = Math.floor(Math.random() * (room.height - 2)) + room.y + 1;
+          
+          // Add loot to the object layer
+          if (dungeon.layers[1]) {
+            dungeon.layers[1].push({
+              x: lootX,
+              y: lootY,
+              itemId: lootItem.itemId,
+              isLoot: true
+            });
+          }
+          
+          // Add to loot array
+          dungeon.loot.push({
+            x: lootX,
+            y: lootY,
+            itemId: lootItem.itemId
+          });
+        }
+      }
+    }
+    
+    return dungeon;
+  },
+  
+  // Rename the existing generateDungeon function to _generateBasicDungeon
+  _generateBasicDungeon: function(size = 100, roomSizeMin = 3, roomSizeMax = 9) {
+    // Original generateDungeon implementation here
+    // Create empty dungeon grid (fill with walls - itemId 11)
+    const dungeon = {
+      width: size,
+      height: size,
+      layers: [[], [], []],  // Ground, Objects, Upper layers
+      name: `${gameState.player.name}'s Dungeon`,
+      level: 1,
+      roomCount: 0,
+      rooms: [],
+      startRoom: null,
+      endRoom: null
+    };
+    
+    // Fill the ground layer with walls
+    for (let x = 0; x < size; x++) {
+      for (let y = 0; y < size; y++) {
+        // Add stone wall (itemId 11) to the entire map
+        if (x === 0 || y === 0 || x === size - 1 || y === size - 1) {
+          // Edge walls
+          dungeon.layers[0].push({
+            x,
+            y,
+            itemId: 11
+          });
+        } else {
+          // Inner area (also walls initially)
+          dungeon.layers[0].push({
+            x,
+            y,
+            itemId: 11
+          });
+        }
+      }
+    }
+    
+    // Generate rooms
+    const rooms = [];
+    const maxRooms = 20;
+    let attempts = 0;
+    
+    while (rooms.length < maxRooms && attempts < 200) {
+      attempts++;
+      
+      // Random room size
+      const width = Math.floor(Math.random() * (roomSizeMax - roomSizeMin + 1)) + roomSizeMin;
+      const height = Math.floor(Math.random() * (roomSizeMax - roomSizeMin + 1)) + roomSizeMin;
+      
+      // Random position (avoid edges)
+      const x = Math.floor(Math.random() * (size - width - 2)) + 1;
+      const y = Math.floor(Math.random() * (size - height - 2)) + 1;
+      
+      // Create room object
+      const newRoom = {
+        x,
+        y,
+        width,
+        height,
+        center: {
+          x: Math.floor(x + width / 2),
+          y: Math.floor(y + height / 2)
+        },
+        connects: []
+      };
+      
+      // Check for room overlap
+      let overlaps = false;
+      for (const room of rooms) {
+        if (this.checkRoomOverlap(newRoom, room)) {
+          overlaps = true;
+          break;
+        }
+      }
+      
+      // If no overlap, add the room
+      if (!overlaps) {
+        rooms.push(newRoom);
+        
+        // Carve out the room - replace walls with floors
+        for (let rx = 0; rx < width; rx++) {
+          for (let ry = 0; ry < height; ry++) {
+            const mapX = x + rx;
+            const mapY = y + ry;
+            
+            // Find and replace the wall tile with floor (cobble floor - itemId 27)
+            const tileIndex = dungeon.layers[0].findIndex(
+              tile => tile.x === mapX && tile.y === mapY
+            );
+            
+            if (tileIndex !== -1) {
+              dungeon.layers[0][tileIndex].itemId = 27; // Cobble floor
+            } else {
+              // Add new floor tile if not found
+              dungeon.layers[0].push({
+                x: mapX,
+                y: mapY,
+                itemId: 27
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // Connect the rooms with corridors
+    for (let i = 0; i < rooms.length - 1; i++) {
+      const roomA = rooms[i];
+      const roomB = rooms[i + 1];
+      
+      // Connect the centers of the rooms
+      this.createCorridor(dungeon, roomA.center.x, roomA.center.y, roomB.center.x, roomB.center.y);
+      
+      // Mark the rooms as connected
+      roomA.connects.push(i + 1);
+      roomB.connects.push(i);
+    }
+    
+    // Place stairs in the first and last room
+    if (rooms.length > 0) {
+      // Entrance stairs in the first room (itemId 12 - up stairs)
+      const entranceRoom = rooms[0];
+      const entranceX = entranceRoom.center.x;
+      const entranceY = entranceRoom.center.y;
+      
+      // Replace floor with entrance stairs
+      const entranceTileIndex = dungeon.layers[0].findIndex(
+        tile => tile.x === entranceX && tile.y === entranceY
+      );
+      
+      if (entranceTileIndex !== -1) {
+        dungeon.layers[0][entranceTileIndex].itemId = 12; // Entrance stairs (up)
+      }
+      
+      // Exit stairs in the last room (itemId 13 - down stairs)
+      const exitRoom = rooms[rooms.length - 1];
+      const exitX = exitRoom.center.x;
+      const exitY = exitRoom.center.y;
+      
+      // Replace floor with exit stairs
+      const exitTileIndex = dungeon.layers[0].findIndex(
+        tile => tile.x === exitX && tile.y === exitY
+      );
+      
+      if (exitTileIndex !== -1) {
+        dungeon.layers[0][exitTileIndex].itemId = 13; // Exit stairs (down)
+      }
+      
+      // Store rooms data
+      dungeon.rooms = rooms;
+      dungeon.roomCount = rooms.length;
+      dungeon.startRoom = entranceRoom;
+      dungeon.endRoom = exitRoom;
+    }
+    
+    return dungeon;
+  }
+};
+
 // Initialize the game
 function init() {
   // Resize canvas to fit the container
@@ -143,6 +538,9 @@ function init() {
           // Center viewport on player
           centerViewportOnPlayer();
           
+          // Add dungeon entrance at position 12,5
+          placeDungeonEntrance();
+          
           // Add test items around the player
           placeTestItems();
           
@@ -158,6 +556,7 @@ function init() {
           addChatMessage(`You are in ${initialSector.name || 'an unknown location'}.`, 'server');
           addChatMessage('Press SPACE to pick up items on the ground.', 'server');
           addChatMessage('Press 1-4 to select inventory slots, E to use selected item, Q to drop it.', 'server');
+          addChatMessage('Try exploring around position (12,5) to find a dungeon entrance.', 'server');
         })
         .catch(error => {
           console.error('Error loading sector:', error);
@@ -322,8 +721,12 @@ function setupEventListeners() {
       case 'i': // 'i' key to toggle inventory
         toggleInventory();
         break;
-      case ' ': // Space bar to pick up items
-        pickupItem();
+      case ' ': // Space bar to pick up items or interact with dungeon entrance
+        if (isAtDungeonEntrance()) {
+          showDungeonPrompt();
+        } else {
+          pickupItem();
+        }
         break;
       case 'e': // 'e' key to use selected item
         useSelectedItem();
@@ -609,6 +1012,9 @@ function isTileWalkable(x, y) {
   for (let layerIndex = 0; layerIndex < gameState.currentSector.layers.length; layerIndex++) {
     const layer = gameState.currentSector.layers[layerIndex];
     
+    // Skip if the layer doesn't exist
+    if (!layer) continue;
+    
     // Find items on this tile
     for (const tile of layer) {
       if (tile.x === x && tile.y === y) {
@@ -618,6 +1024,32 @@ function isTileWalkable(x, y) {
         // If the item is blocking, this tile is not walkable
         if (item && item.properties && item.properties.blocking) {
           return false;
+        }
+        
+        // Special handling for dungeon entrance in the overworld
+        if (
+          !gameState.inDungeon && 
+          gameState.activeSectorCoords.x === 0 && 
+          gameState.activeSectorCoords.y === 0 && 
+          x === 12 && 
+          y === 5 && 
+          tile.itemId === 13
+        ) {
+          // Dungeon entrance is walkable but we'll prompt the player
+          return true;
+        }
+        
+        // Check for stairs and handle dungeon navigation if the player steps on them
+        if (item && gameState.inDungeon) {
+          if (item.id === 13) { // Down stairs in dungeon - go deeper
+            setTimeout(() => {
+              goToDeeperDungeonLevel();
+            }, 500); // Small delay to make movement feel better
+          } else if (item.id === 12) { // Up stairs in dungeon - exit dungeon
+            setTimeout(() => {
+              exitDungeon();
+            }, 500); // Small delay to make movement feel better
+          }
         }
       }
     }
@@ -650,6 +1082,22 @@ function render() {
   
   // Render player
   renderPlayer();
+  
+  // Render dungeon level information if in a dungeon
+  if (gameState.inDungeon && gameState.currentDungeon) {
+    // Draw dungeon level info at the top right corner
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(canvas.width - 150, 10, 140, 30);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      `Dungeon Level ${gameState.currentDungeon.level}`, 
+      canvas.width - 80, 
+      30
+    );
+  }
 }
 
 // Render map layers
@@ -1582,6 +2030,317 @@ function placeTestItems() {
     // Place magic scroll one tile below the player
     addItemToMap(magicScroll, gameState.player.x, gameState.player.y + 1);
   }
+}
+
+// Check if player is at the dungeon entrance (position 12,5 in sector 0,0)
+function isAtDungeonEntrance() {
+  // Only check if in the spawn sector and not already in a dungeon
+  if (
+    !gameState.inDungeon && 
+    gameState.activeSectorCoords.x === 0 && 
+    gameState.activeSectorCoords.y === 0 &&
+    gameState.player.x === 12 && 
+    gameState.player.y === 5
+  ) {
+    // Check if there's a dungeon entrance tile at this position
+    if (gameState.currentSector.layers[1]) {
+      const entranceTile = gameState.currentSector.layers[1].find(
+        tile => tile.x === 12 && tile.y === 5 && tile.itemId === 13
+      );
+      
+      if (entranceTile) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Show the dungeon entrance prompt
+function showDungeonPrompt() {
+  // Create a modal popup for the dungeon prompt
+  const modalContainer = document.createElement('div');
+  modalContainer.className = 'modal-container';
+  modalContainer.style.position = 'fixed';
+  modalContainer.style.top = '0';
+  modalContainer.style.left = '0';
+  modalContainer.style.width = '100%';
+  modalContainer.style.height = '100%';
+  modalContainer.style.backgroundColor = 'rgba(0,0,0,0.7)';
+  modalContainer.style.display = 'flex';
+  modalContainer.style.justifyContent = 'center';
+  modalContainer.style.alignItems = 'center';
+  modalContainer.style.zIndex = '1000';
+  
+  // Create modal content
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.backgroundColor = '#222';
+  modal.style.border = '2px solid #444';
+  modal.style.borderRadius = '5px';
+  modal.style.padding = '20px';
+  modal.style.maxWidth = '400px';
+  modal.style.color = '#fff';
+  modal.style.textAlign = 'center';
+  
+  // Add modal title
+  const title = document.createElement('h2');
+  title.textContent = 'Dungeon Entrance';
+  title.style.marginBottom = '15px';
+  
+  // Add modal message
+  const message = document.createElement('p');
+  message.textContent = 'You have discovered an entrance to a dark dungeon. Do you wish to enter?';
+  message.style.marginBottom = '20px';
+  
+  // Add buttons container
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.style.display = 'flex';
+  buttonsContainer.style.justifyContent = 'center';
+  buttonsContainer.style.gap = '10px';
+  
+  // Add Yes button
+  const yesButton = document.createElement('button');
+  yesButton.textContent = 'Enter Dungeon';
+  yesButton.style.padding = '8px 16px';
+  yesButton.style.backgroundColor = '#4CAF50';
+  yesButton.style.border = 'none';
+  yesButton.style.borderRadius = '4px';
+  yesButton.style.color = 'white';
+  yesButton.style.cursor = 'pointer';
+  
+  // Add No button
+  const noButton = document.createElement('button');
+  noButton.textContent = 'Stay Here';
+  noButton.style.padding = '8px 16px';
+  noButton.style.backgroundColor = '#f44336';
+  noButton.style.border = 'none';
+  noButton.style.borderRadius = '4px';
+  noButton.style.color = 'white';
+  noButton.style.cursor = 'pointer';
+  
+  // Add event listeners to buttons
+  yesButton.addEventListener('click', () => {
+    // Remove modal
+    document.body.removeChild(modalContainer);
+    
+    // Enter the dungeon
+    enterDungeon();
+  });
+  
+  noButton.addEventListener('click', () => {
+    // Remove modal
+    document.body.removeChild(modalContainer);
+    
+    // Add chat message
+    addChatMessage('You decided not to enter the dungeon.', 'game');
+  });
+  
+  // Assemble modal
+  buttonsContainer.appendChild(yesButton);
+  buttonsContainer.appendChild(noButton);
+  modal.appendChild(title);
+  modal.appendChild(message);
+  modal.appendChild(buttonsContainer);
+  modalContainer.appendChild(modal);
+  
+  // Add modal to document
+  document.body.appendChild(modalContainer);
+  
+  // Add chat message
+  addChatMessage('You found a dungeon entrance! Press SPACE to interact or move away.', 'game');
+}
+
+// Function to enter the dungeon
+function enterDungeon() {
+  // Generate the dungeon
+  const dungeon = dungeonGenerator.generateDungeon(100, 3, 9);
+  
+  // Store the player's current sector and position for when they exit
+  gameState.previousSector = {
+    coords: { ...gameState.activeSectorCoords },
+    x: gameState.player.x,
+    y: gameState.player.y
+  };
+  
+  // Set the current dungeon
+  gameState.currentDungeon = dungeon;
+  gameState.inDungeon = true;
+  
+  // Load the dungeon as the current sector
+  gameState.currentSector = dungeon;
+  
+  // Set player position to entrance stairs
+  if (dungeon.startRoom) {
+    gameState.player.x = dungeon.startRoom.center.x;
+    gameState.player.y = dungeon.startRoom.center.y;
+  } else {
+    // Fallback to a random walkable position
+    placePlayerAtRandomPosition();
+  }
+  
+  // Center viewport on player
+  centerViewportOnPlayer();
+  
+  // Notify player
+  addChatMessage(`You have entered ${dungeon.name}.`, 'server');
+  addChatMessage(`This dungeon has ${dungeon.roomCount} rooms. Find the exit stairs to proceed deeper.`, 'server');
+}
+
+// Function to exit the dungeon (called when player uses stairs to leave)
+function exitDungeon() {
+  if (!gameState.inDungeon || !gameState.previousSector) {
+    return;
+  }
+  
+  // Set flag
+  gameState.inDungeon = false;
+  
+  // Load the previous sector
+  if (gameState.previousSector.coords) {
+    // Find sector data in worldData
+    const sectorData = gameState.worldData.sectors.find(
+      s => s.coordinates.x === gameState.previousSector.coords.x && 
+           s.coordinates.y === gameState.previousSector.coords.y
+    );
+    
+    if (sectorData) {
+      // Load the sector
+      loadSector(sectorData.filename)
+        .then(sectorData => {
+          // Update current sector data
+          gameState.currentSector = sectorData;
+          gameState.activeSectorCoords = gameState.previousSector.coords;
+          
+          // Set player position
+          gameState.player.x = gameState.previousSector.x;
+          gameState.player.y = gameState.previousSector.y;
+          
+          // Move player 1 tile away from the dungeon entrance to prevent loop
+          gameState.player.y += 1;
+          
+          // Center viewport on player
+          centerViewportOnPlayer();
+          
+          // Notify player
+          addChatMessage('You have exited the dungeon.', 'server');
+        })
+        .catch(error => {
+          console.error('Error loading previous sector:', error);
+          addChatMessage('Error exiting dungeon. Please try again.', 'server');
+        });
+    }
+  }
+}
+
+// Function to move to the next dungeon level (when player uses down stairs)
+function goToDeeperDungeonLevel() {
+  if (!gameState.inDungeon || !gameState.currentDungeon) {
+    return;
+  }
+  
+  // Generate a new, harder dungeon level
+  const currentLevel = gameState.currentDungeon.level || 1;
+  const newDungeon = dungeonGenerator.generateDungeon(100, 3, 9);
+  newDungeon.level = currentLevel + 1;
+  newDungeon.name = `${gameState.player.name}'s Dungeon - Level ${newDungeon.level}`;
+  
+  // Set the current dungeon
+  gameState.currentDungeon = newDungeon;
+  gameState.currentSector = newDungeon;
+  
+  // Set player position to entrance stairs
+  if (newDungeon.startRoom) {
+    gameState.player.x = newDungeon.startRoom.center.x;
+    gameState.player.y = newDungeon.startRoom.center.y;
+  } else {
+    // Fallback to a random walkable position
+    placePlayerAtRandomPosition();
+  }
+  
+  // Center viewport on player
+  centerViewportOnPlayer();
+  
+  // Notify player
+  addChatMessage(`You have descended to dungeon level ${newDungeon.level}.`, 'server');
+  addChatMessage(`This level has ${newDungeon.roomCount} rooms and ${newDungeon.monsters ? newDungeon.monsters.length : 0} monsters.`, 'server');
+  addChatMessage('Be careful, monsters are stronger here!', 'server');
+}
+
+// Function to place dungeon entrance at position 12,5 in the spawn sector
+function placeDungeonEntrance() {
+  // Only modify the spawn sector (0,0)
+  if (
+    gameState.activeSectorCoords.x !== 0 || 
+    gameState.activeSectorCoords.y !== 0 ||
+    !gameState.currentSector
+  ) {
+    return;
+  }
+  
+  // Define dungeon entrance position
+  const entranceX = 12;
+  const entranceY = 5;
+  
+  // Create a special visual indicator for the dungeon entrance
+  // We'll use a modified version of the stairs down item (ID 13)
+  // but with a special property
+  
+  // Check if there's already a tile at this position in the upper layers
+  let tileExists = false;
+  
+  // Check in the objects layer (1)
+  if (gameState.currentSector.layers[1]) {
+    const existingTileIndex = gameState.currentSector.layers[1].findIndex(
+      tile => tile.x === entranceX && tile.y === entranceY
+    );
+    
+    if (existingTileIndex !== -1) {
+      // Update existing tile
+      gameState.currentSector.layers[1][existingTileIndex].itemId = 13; // Stairs down
+      tileExists = true;
+    }
+  } else {
+    // Create objects layer if it doesn't exist
+    gameState.currentSector.layers[1] = [];
+  }
+  
+  // If no tile exists, add a new one
+  if (!tileExists) {
+    gameState.currentSector.layers[1].push({
+      x: entranceX,
+      y: entranceY,
+      itemId: 13, // Stairs down
+      isDungeonEntrance: true // Custom property to identify dungeon entrance
+    });
+  }
+  
+  // Add a torch item (itemId 16) next to the dungeon entrance for visual cue
+  const torchPositions = [
+    { x: entranceX - 1, y: entranceY - 1 },
+    { x: entranceX + 1, y: entranceY - 1 },
+    { x: entranceX - 1, y: entranceY + 1 },
+    { x: entranceX + 1, y: entranceY + 1 }
+  ];
+  
+  // Add torches
+  for (const pos of torchPositions) {
+    // Check if there's already a tile at this position
+    const existingTileIndex = gameState.currentSector.layers[1].findIndex(
+      tile => tile.x === pos.x && tile.y === pos.y
+    );
+    
+    if (existingTileIndex === -1) {
+      // Add torch if no tile exists at this position
+      gameState.currentSector.layers[1].push({
+        x: pos.x,
+        y: pos.y,
+        itemId: 16 // Torch
+      });
+    }
+  }
+  
+  console.log('Dungeon entrance placed at position (12,5)');
 }
 
 // Start the game when the page loads

@@ -205,7 +205,7 @@
     "properties": {
       "walkable": true,
       "blocking": false,
-      "useable": false,
+      "useable": true,
       "pickupable": false
     },
     "sprite": {
@@ -220,7 +220,7 @@
     "properties": {
       "walkable": true,
       "blocking": false,
-      "useable": false,
+      "useable": true,
       "pickupable": false
     },
     "sprite": {
